@@ -4,8 +4,8 @@ import { BASE_URL } from '@env';
 import { show } from '@utils/helpers';
 import * as actions from '@store/apiActions';
 import { clearLoginRes } from '@store/slices/auth/login';
-import { setLoginState } from '@store/slices/localStates/loginState';
 import { clearLogoutResponse } from '@store/slices/auth/logout';
+import { setLoginState } from '@store/slices/localStates/loginState';
 import { handalLoading } from '@store/slices/localStates/handalLoading';
 
 interface ApiMiddlewareArgs {
@@ -86,11 +86,10 @@ const api =
       timeout: 30000,
       baseURL,
     };
-    console.log('requestConfig=>', requestConfig);
     try {
       const response = await axios.request(requestConfig);
       const responseData = response?.data;
-      console.log(url + ' Response=>>\n', response);
+      // console.log(url + ' Response=>>\n', response);
       // Check for API-specific failure even on 200 status
       if (responseData?.data?.success === false) {
         const apiError = responseData?.data?.message || 'Something went wrong';
@@ -114,7 +113,7 @@ const api =
 
       if (onSuccess) dispatch({ type: onSuccess, payload: responseData });
     } catch (error: any) {
-      console.log(url, '[error]', error);
+      console.log(url, '[error]', error?.response || error);
       const statusCode = error?.response?.status;
       const serverMessage = error?.response?.data?.message;
 

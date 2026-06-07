@@ -34,9 +34,15 @@ const slice = createSlice({
 export const { requested, success, failed, reset } = slice.actions;
 export default slice.reducer;
 
-export const login = (data: FormData) =>
+interface LoginPayload {
+  identifier: string;
+  password: string;
+}
+
+export const login = (data: LoginPayload) =>
   apiCallBegan({
     data,
+    isRowData: true,
     url: apiRoutes.login,
     method: methods.POST,
     onFailed: failed.type,

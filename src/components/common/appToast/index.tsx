@@ -31,22 +31,24 @@ export default memo(ToastMessage);
 
 const useStyles = (colors: any) => {
   const { moderateWidth, moderateHeight } = useDeviceDimensions();
-
   return StyleSheet.create({
     wrapperSuccess: {
       width: moderateWidth(90),
+      marginTop: moderateHeight(5),
       borderRadius: moderateHeight(1),
       paddingVertical: moderateWidth(3),
       backgroundColor: colors.toastSuccess,
     },
     wrapperError: {
       width: moderateWidth(90),
+      marginTop: moderateHeight(5),
       borderRadius: moderateHeight(1),
       paddingVertical: moderateWidth(3),
       backgroundColor: colors.toastError,
     },
     wrapperWarn: {
       width: moderateWidth(90),
+      marginTop: moderateHeight(5),
       borderRadius: moderateHeight(1),
       backgroundColor: colors.toastWarn,
       paddingVertical: moderateWidth(3),

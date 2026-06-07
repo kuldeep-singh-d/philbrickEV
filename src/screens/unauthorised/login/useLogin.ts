@@ -1,18 +1,19 @@
-import { useStyles } from './styles';
-import { useCallback, useEffect, useState } from 'react';
-import { useDispatch, useSelector } from '@hooks';
-import { useNavigation } from '@react-navigation/native';
 import { routes } from '@routes';
-import { login } from '@store/slices/auth/login';
-import { setLoginState } from '@store/slices/localStates/loginState';
+import { useStyles } from './styles';
 import helpers from '@utils/helpers';
+import { login } from '@store/slices/auth/login';
+import { useDispatch, useSelector } from '@hooks';
+import { useCallback, useEffect, useState } from 'react';
+import { useNavigation } from '@react-navigation/native';
+import { setLoginState } from '@store/slices/localStates/loginState';
 
 export const useLogin = () => {
   const styles = useStyles();
   const dispatch = useDispatch();
   const loginResponse = useSelector(state => state.login);
-  const navigation: any = useNavigation();
 
+  const navigation: any = useNavigation();
+  // Dummy Credes: test@email.com || P@ssw0rd
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [emailError, setEmailError] = useState('');
@@ -23,7 +24,7 @@ export const useLogin = () => {
     if (token) {
       dispatch(setLoginState(true));
     }
-  }, [dispatch, loginResponse.data]);
+  }, [loginResponse.data]);
 
   const handleLogin = useCallback(() => {
     const normalizedEmail = email.trim().toLowerCase();
@@ -49,10 +50,7 @@ export const useLogin = () => {
       return;
     }
 
-    const formData = new FormData();
-    formData.append('email', normalizedEmail);
-    formData.append('password', password);
-    dispatch(login(formData));
+    dispatch(login({ identifier: normalizedEmail, password }));
   }, [dispatch, email, loginResponse.loading, password]);
 
   const handleForgotPassword = useCallback(() => {
