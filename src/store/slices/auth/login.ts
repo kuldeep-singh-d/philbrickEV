@@ -37,8 +37,6 @@ export default slice.reducer;
 export const login = (data: FormData) =>
   apiCallBegan({
     data,
-    isLogin: true,
-    formData: true,
     url: apiRoutes.login,
     method: methods.POST,
     onFailed: failed.type,
