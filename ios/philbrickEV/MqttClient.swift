@@ -3,14 +3,20 @@ import React
 import Security
 
 @objc(MqttClient)
-class MqttClient: NSObject {
+class MqttClient: RCTEventEmitter {
   private let queue = DispatchQueue(label: "com.philbrickev.mqtt")
+  private let readerQueue = DispatchQueue(label: "com.philbrickev.mqtt.reader")
   private var inputStream: InputStream?
   private var outputStream: OutputStream?
+  private var isReading = false
+  private var nextPacketIdentifier = 1
 
-  @objc
-  static func requiresMainQueueSetup() -> Bool {
+  override static func requiresMainQueueSetup() -> Bool {
     false
+  }
+
+  override func supportedEvents() -> [String]! {
+    ["MqttMessageReceived"]
   }
 
   @objc(connect:resolver:rejecter:)
@@ -129,6 +135,36 @@ class MqttClient: NSObject {
     }
   }
 
+  @objc(subscribe:resolver:rejecter:)
+  func subscribe(
+    options: NSDictionary,
+    resolver resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock
+  ) {
+    queue.async {
+      do {
+        guard let input = self.inputStream, let output = self.outputStream else {
+          throw MqttError.connection("MQTT is not connected")
+        }
+        guard let topic = options["topic"] as? String, !topic.isEmpty else {
+          throw MqttError.missingOption("subscribe topic")
+        }
+
+        let packetIdentifier = self.takeNextPacketIdentifier()
+        let subscribePacket = self.buildSubscribePacket(
+          packetIdentifier: packetIdentifier,
+          topic: topic
+        )
+        try self.write(subscribePacket, to: output)
+        self.startReadLoop(input: input)
+        self.log("MQTT SUBSCRIBE packet sent topic=\(topic) packetId=\(packetIdentifier)")
+        resolve(["subscribed": true, "topic": topic])
+      } catch {
+        reject("MQTT_SUBSCRIBE_FAILED", error.localizedDescription, error)
+      }
+    }
+  }
+
   private func loadIdentity(
     certificateName: String,
     certificatePassword: String
@@ -218,7 +254,7 @@ class MqttClient: NSObject {
     var trust: SecTrust?
     let createTrustStatus = SecTrustCreateWithCertificates(
       peerCertificates as CFArray,
-      SecPolicyCreateBasicX509(),
+      SecPolicyCreateSSL(true, host as CFString),
       &trust
     )
     guard createTrustStatus == errSecSuccess, let trust else {
@@ -239,16 +275,12 @@ class MqttClient: NSObject {
       )
     }
 
-    let certificateName = SecCertificateCopySubjectSummary(leafCertificate) as String? ?? ""
-    guard certificateName == host else {
-      throw MqttError.certificate(
-        "MQTT server certificate name \(certificateName) does not match \(host)"
-      )
-    }
-    log("Validated MQTT server certificate \(certificateName) with bundled CA")
+    let certificateName = SecCertificateCopySubjectSummary(leafCertificate) as String? ?? host
+    log("Validated MQTT server certificate \(certificateName) for \(host) with bundled CA")
   }
 
   private func disconnectStreams() {
+    isReading = false
     inputStream?.close()
     outputStream?.close()
     inputStream = nil
@@ -300,6 +332,77 @@ class MqttClient: NSObject {
     let payload = Array(message.utf8)
     let remainingLength = variableHeader.count + payload.count
     return [0x30] + encodeRemainingLength(remainingLength) + variableHeader + payload
+  }
+
+  private func buildSubscribePacket(packetIdentifier: Int, topic: String) -> [UInt8] {
+    let variableHeader = [
+      UInt8((packetIdentifier >> 8) & 0xFF),
+      UInt8(packetIdentifier & 0xFF),
+    ]
+    var payload: [UInt8] = []
+    payload.appendMqttString(topic)
+    payload.append(0x00)
+
+    let remainingLength = variableHeader.count + payload.count
+    return [0x82] + encodeRemainingLength(remainingLength) + variableHeader + payload
+  }
+
+  private func startReadLoop(input: InputStream) {
+    guard !isReading else {
+      return
+    }
+    isReading = true
+
+    readerQueue.async {
+      while self.isReading && self.inputStream === input {
+        do {
+          let fixedHeader = try self.readByte(from: input)
+          let remainingLength = try self.readRemainingLength(from: input)
+          let packet = try self.readExact(from: input, length: remainingLength)
+
+          switch fixedHeader & 0xF0 {
+          case 0x30:
+            try self.handlePublishPacket(fixedHeader: fixedHeader, packet: packet)
+          case 0x90:
+            self.log("MQTT SUBACK received")
+          default:
+            self.log("MQTT packet ignored type=\(fixedHeader & 0xF0)")
+          }
+        } catch {
+          if self.isReading {
+            self.log("MQTT read loop stopped: \(error.localizedDescription)")
+          }
+          self.isReading = false
+        }
+      }
+    }
+  }
+
+  private func handlePublishPacket(fixedHeader: UInt8, packet: [UInt8]) throws {
+    guard packet.count >= 2 else {
+      throw MqttError.protocolError("Malformed MQTT PUBLISH packet")
+    }
+
+    let topicLength = (Int(packet[0]) << 8) | Int(packet[1])
+    let topicStart = 2
+    let topicEnd = topicStart + topicLength
+    guard topicEnd <= packet.count else {
+      throw MqttError.protocolError("Malformed MQTT PUBLISH topic")
+    }
+
+    let qos = (fixedHeader & 0x06) >> 1
+    let payloadStart = topicEnd + (qos > 0 ? 2 : 0)
+    guard payloadStart <= packet.count else {
+      throw MqttError.protocolError("Malformed MQTT PUBLISH payload")
+    }
+
+    let topic = String(decoding: packet[topicStart..<topicEnd], as: UTF8.self)
+    let message = String(decoding: packet[payloadStart...], as: UTF8.self)
+    log("MQTT message received topic=\(topic) message=\(message)")
+    sendEvent(
+      withName: "MqttMessageReceived",
+      body: ["topic": topic, "message": message]
+    )
   }
 
   private func encodeRemainingLength(_ length: Int) -> [UInt8] {
@@ -362,6 +465,31 @@ class MqttClient: NSObject {
     throw MqttError.connection("MQTT socket closed while reading")
   }
 
+  private func readExact(from input: InputStream, length: Int) throws -> [UInt8] {
+    var bytes = [UInt8](repeating: 0, count: length)
+    var offset = 0
+
+    while offset < length {
+      let read = bytes.withUnsafeMutableBytes { buffer -> Int in
+        guard let baseAddress = buffer.bindMemory(to: UInt8.self).baseAddress else {
+          return 0
+        }
+        return input.read(
+          baseAddress.advanced(by: offset),
+          maxLength: length - offset
+        )
+      }
+      if read <= 0 {
+        if let error = input.streamError {
+          throw error
+        }
+        throw MqttError.connection("MQTT socket closed while reading packet")
+      }
+      offset += read
+    }
+    return bytes
+  }
+
   private func log(_ message: String) {
     print("[MQTT][iOS] \(message)")
   }
@@ -371,6 +499,12 @@ class MqttClient: NSObject {
     formatter.dateFormat = "HHmmssSSS"
     formatter.locale = Locale(identifier: "en_US_POSIX")
     return "ios_\(formatter.string(from: Date()))"
+  }
+
+  private func takeNextPacketIdentifier() -> Int {
+    let packetIdentifier = nextPacketIdentifier
+    nextPacketIdentifier = nextPacketIdentifier == 0xFFFF ? 1 : nextPacketIdentifier + 1
+    return packetIdentifier
   }
 }
 

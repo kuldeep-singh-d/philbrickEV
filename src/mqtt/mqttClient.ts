@@ -37,10 +37,6 @@ function getNativeMqttClient(): NativeMqttClient | undefined {
   return mqttClient;
 }
 
-function logMqttConfig(config: MqttConfig) {
-  //// console.log('[MQTT] Config', config);
-}
-
 function padTimePart(value: number, length: number) {
   return String(value).padStart(length, '0');
 }
@@ -64,8 +60,6 @@ export function startMqttConnection(
   | { connected: false; skipped: true }
 > {
   //// console.log('[MQTT] startMqttConnection called');
-  logMqttConfig(config);
-
   if (!config.enabled || !config.host) {
     //// console.log('[MQTT] Connection skipped');
     //// console.log('[MQTT] Skip reason enabled', config.enabled);

@@ -1,0 +1,8 @@
+const fonts = Object.freeze({
+  regular: 'Poppins-Regular',
+  medium: 'Poppins-Medium',
+  semibold: 'Poppins-SemiBold',
+  bold: 'Poppins-Bold',
+});
+
+export default fonts;
