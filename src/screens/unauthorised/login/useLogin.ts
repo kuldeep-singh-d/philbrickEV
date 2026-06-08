@@ -24,7 +24,7 @@ export const useLogin = () => {
     if (token) {
       dispatch(setLoginState(true));
     }
-  }, [loginResponse.data]);
+  }, [dispatch, loginResponse.data]);
 
   const handleLogin = useCallback(() => {
     const normalizedEmail = email.trim().toLowerCase();

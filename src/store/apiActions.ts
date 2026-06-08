@@ -21,6 +21,7 @@ interface Props {
   onFileFailed?: string;
   onFileSuccess?: string;
   isRowData?: boolean;
+  headers?: Record<string, string>;
 }
 
 // root action creators

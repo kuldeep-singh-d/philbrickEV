@@ -33,6 +33,22 @@ export const useStyles = () => {
       color: '#0BB2C3',
       fontSize: moderateHeight(1.5),
     },
+    otpTimerText: {
+      color: '#6B7280',
+      marginTop: -moderateHeight(0.2),
+      marginBottom: moderateHeight(1.2),
+      fontSize: moderateHeight(1.45),
+    },
+    resendOtpButton: {
+      alignSelf: 'center',
+      paddingHorizontal: moderateWidth(4),
+      paddingVertical: moderateHeight(1),
+      marginBottom: moderateHeight(1),
+    },
+    resendOtpText: {
+      color: '#0BB2C3',
+      fontSize: moderateHeight(1.55),
+    },
     backButton: {
       alignSelf: 'center',
       paddingHorizontal: moderateWidth(4),

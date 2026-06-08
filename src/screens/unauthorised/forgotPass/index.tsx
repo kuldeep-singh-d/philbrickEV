@@ -56,30 +56,56 @@ export const ForgotPass = () => {
           )}
 
           {states.otpSent && (
-            <AppInput
-              title="OTP"
-              gradientBorder
-              value={states.otp}
-              maxLength={6}
-              error={states.otpError}
-              keyboardType="number-pad"
-              placeholder="Enter OTP"
-              onChangeText={handlers.setOtp}
-              setError={handlers.setOtpError}
-              rightElement={
+            <>
+              <AppInput
+                title="OTP"
+                gradientBorder
+                value={states.otp}
+                maxLength={6}
+                error={states.otpError}
+                keyboardType="number-pad"
+                placeholder="Enter OTP"
+                onChangeText={handlers.setOtp}
+                setError={handlers.setOtpError}
+                rightElement={
+                  states.otpExpired ? null : (
+                    <Pressable
+                      hitSlop={10}
+                      style={styles.inputAction}
+                      onPress={handlers.handleVerifyOtp}
+                    >
+                      <AppText
+                        semibold
+                        label="Verify"
+                        style={styles.inputActionText}
+                      />
+                    </Pressable>
+                  )
+                }
+              />
+
+              {states.otpExpired ? (
                 <Pressable
                   hitSlop={10}
-                  style={styles.inputAction}
-                  onPress={handlers.handleVerifyOtp}
+                  disabled={states.loading}
+                  style={styles.resendOtpButton}
+                  onPress={handlers.handleResendOtp}
                 >
                   <AppText
                     semibold
-                    label="Verify"
-                    style={styles.inputActionText}
+                    centered
+                    label="Resend OTP"
+                    style={styles.resendOtpText}
                   />
                 </Pressable>
-              }
-            />
+              ) : (
+                <AppText
+                  centered
+                  style={styles.otpTimerText}
+                  label={`This code will expire in ${states.otpCountdown} minutes.`}
+                />
+              )}
+            </>
           )}
 
           {states.otpVerified && (

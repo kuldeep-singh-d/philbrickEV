@@ -2,8 +2,13 @@ import { createSlice } from '@reduxjs/toolkit';
 import { apiCallBegan } from '@store/apiActions';
 import { apiRoutes, methods } from '@store/apiRoutes';
 
+interface VerifyOtpPayload {
+  email: string;
+  code: string;
+}
+
 const slice = createSlice({
-  name: 'login',
+  name: 'verify-otp',
   initialState: {
     data: undefined as any | undefined,
     loading: false,
@@ -34,20 +39,15 @@ const slice = createSlice({
 export const { requested, success, failed, reset } = slice.actions;
 export default slice.reducer;
 
-interface LoginPayload {
-  identifier: string;
-  password: string;
-}
-
-export const login = (data: LoginPayload) =>
+export const verifyOtp = (data: VerifyOtpPayload) =>
   apiCallBegan({
     data,
     isRowData: true,
-    url: apiRoutes.login,
+    url: apiRoutes.verifyOtp,
     method: methods.POST,
     onFailed: failed.type,
     onStart: requested.type,
     onSuccess: success.type,
   });
 
-export const clearLoginRes = () => reset();
+export const clearVerifyOtpRes = () => reset();

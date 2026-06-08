@@ -2,8 +2,12 @@ import { createSlice } from '@reduxjs/toolkit';
 import { apiCallBegan } from '@store/apiActions';
 import { apiRoutes, methods } from '@store/apiRoutes';
 
+interface EmailPayload {
+  email: string;
+}
+
 const slice = createSlice({
-  name: 'login',
+  name: 'forgot-password',
   initialState: {
     data: undefined as any | undefined,
     loading: false,
@@ -34,20 +38,26 @@ const slice = createSlice({
 export const { requested, success, failed, reset } = slice.actions;
 export default slice.reducer;
 
-interface LoginPayload {
-  identifier: string;
-  password: string;
-}
-
-export const login = (data: LoginPayload) =>
+export const forgotPassword = (data: EmailPayload) =>
   apiCallBegan({
     data,
     isRowData: true,
-    url: apiRoutes.login,
     method: methods.POST,
     onFailed: failed.type,
     onStart: requested.type,
     onSuccess: success.type,
+    url: apiRoutes.forgotPassword,
   });
 
-export const clearLoginRes = () => reset();
+export const resendOtp = (data: EmailPayload) =>
+  apiCallBegan({
+    data,
+    isRowData: true,
+    method: methods.POST,
+    onFailed: failed.type,
+    onStart: requested.type,
+    onSuccess: success.type,
+    url: apiRoutes.resendOtp,
+  });
+
+export const clearForgotPasswordRes = () => reset();

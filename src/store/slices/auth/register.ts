@@ -2,8 +2,17 @@ import { createSlice } from '@reduxjs/toolkit';
 import { apiCallBegan } from '@store/apiActions';
 import { apiRoutes, methods } from '@store/apiRoutes';
 
+interface RegisterPayload {
+  name: string;
+  username: string;
+  email: string;
+  phone: string;
+  password: string;
+  password_confirmation: string;
+}
+
 const slice = createSlice({
-  name: 'login',
+  name: 'register',
   initialState: {
     data: undefined as any | undefined,
     loading: false,
@@ -34,20 +43,15 @@ const slice = createSlice({
 export const { requested, success, failed, reset } = slice.actions;
 export default slice.reducer;
 
-interface LoginPayload {
-  identifier: string;
-  password: string;
-}
-
-export const login = (data: LoginPayload) =>
+export const register = (data: RegisterPayload) =>
   apiCallBegan({
     data,
     isRowData: true,
-    url: apiRoutes.login,
+    url: apiRoutes.register,
     method: methods.POST,
     onFailed: failed.type,
     onStart: requested.type,
     onSuccess: success.type,
   });
 
-export const clearLoginRes = () => reset();
+export const clearRegisterRes = () => reset();

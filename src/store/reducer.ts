@@ -8,9 +8,17 @@ import handalLoading from './slices/localStates/handalLoading';
 
 // API States
 import login from './slices/auth/login';
+import register from './slices/auth/register';
+import verifyOtp from './slices/auth/verifyOtp';
+import resetPassword from './slices/auth/resetPassword';
+import forgotPassword from './slices/auth/forgotPassword';
 
 const reducers = combineReducers({
   login,
+  register,
+  verifyOtp,
+  resetPassword,
+  forgotPassword,
   appTheme,
   loginState,
   handalLoading,

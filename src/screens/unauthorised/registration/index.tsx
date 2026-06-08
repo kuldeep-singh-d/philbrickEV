@@ -108,6 +108,7 @@ export const Registration = () => {
           <AppInput
             gradientBorder
             isContactNumber
+            maxLength={10}
             title="Mobile Number"
             value={states.mobileNumber}
             error={states.mobileNumberError}
@@ -161,9 +162,9 @@ export const Registration = () => {
           />
 
           <AppButton
-            title="Sign in"
+            title="Sign up"
             loader={states.loading}
-            disabled={states.loading}
+            disabled={!states.emailVerified || states.loading}
             style={styles.registerButton}
             onPress={handlers.handleRegister}
           />
@@ -176,7 +177,7 @@ export const Registration = () => {
             <Pressable onPress={handlers.handleGoToLogin}>
               <AppText
                 semibold
-                label="Sign up"
+                label="Login"
                 style={styles.createAccountText}
               />
             </Pressable>

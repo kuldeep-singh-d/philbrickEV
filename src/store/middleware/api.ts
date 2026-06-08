@@ -26,6 +26,7 @@ interface ApiCallPayload {
   isRowData?: boolean;
   authHeader?: boolean;
   isUrlencoded?: boolean;
+  headers?: Record<string, string>;
 }
 
 interface AxiosRequestConfig {
@@ -53,6 +54,7 @@ const api =
       onReset,
       onFailed,
       onSuccess,
+      headers: extraHeaders,
       isRowData = false,
     }: ApiCallPayload = action.payload;
 
@@ -65,7 +67,8 @@ const api =
     }
 
     const store = getState();
-    const token = store?.login?.data?.data?.token;
+    const token =
+      store?.login?.data?.data?.token || store?.register?.data?.data?.token;
     const baseURL = store?.setEnvironment?.data?.domain || BASE_URL;
     // console.log('[API] baseURL:', baseURL);
     const headers: Record<string, string> = {
@@ -77,6 +80,8 @@ const api =
     if (token) {
       headers.Authorization = `Bearer ${token}`;
     }
+
+    Object.assign(headers, extraHeaders);
 
     const requestConfig: AxiosRequestConfig = {
       url,

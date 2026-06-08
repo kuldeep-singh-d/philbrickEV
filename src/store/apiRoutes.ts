@@ -7,4 +7,9 @@ export const methods = {
 
 export const apiRoutes = {
   login: '/api/v1/auth/login',
+  register: '/api/v1/auth/register',
+  forgotPassword: '/api/v1/auth/forgot-password',
+  resendOtp: '/api/v1/auth/resend-otp',
+  verifyOtp: '/api/v1/auth/verify-otp',
+  resetPassword: '/api/v1/auth/reset-password',
 };

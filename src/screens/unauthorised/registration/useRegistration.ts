@@ -1,8 +1,10 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { routes } from '@routes';
 import helpers, { show } from '@utils/helpers';
 import useStyles from './styles';
+import { useDispatch, useSelector } from '@hooks';
+import { register } from '@store/slices/auth/register';
 
 const LOCAL_OTP = '123456';
 
@@ -16,7 +18,9 @@ const verifyEmailOtp = async (otp: string) => {
 
 export const useRegistration = () => {
   const styles = useStyles();
+  const dispatch = useDispatch();
   const navigation: any = useNavigation();
+  const registerRequestRef = useRef(false);
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -34,12 +38,35 @@ export const useRegistration = () => {
 
   const [otpSent, setOtpSent] = useState(false);
   const [emailVerified, setEmailVerified] = useState(false);
+  const registerResponse = useSelector(state => state.register);
 
   const normalizedEmail = email.trim().toLowerCase();
+  const normalizedUsername = name.trim();
   const canVerifyEmail = useMemo(
     () => helpers.isValidEmail(normalizedEmail) && !emailVerified,
     [emailVerified, normalizedEmail],
   );
+
+  const normalizedPhone = useMemo(() => {
+    const digits = mobileNumber.replace(/\D/g, '');
+
+    if (digits.length === 10) {
+      return `+1${digits}`;
+    }
+
+    return digits.startsWith('1') ? `+${digits}` : mobileNumber.trim();
+  }, [mobileNumber]);
+
+  useEffect(() => {
+    if (!registerRequestRef.current || !registerResponse.data) {
+      return;
+    }
+
+    registerRequestRef.current = false;
+    show.success('Registration successful');
+
+    navigation.navigate(routes.auth.login);
+  }, [navigation, registerResponse.data]);
 
   const handleEmailChange = useCallback((value: string) => {
     setEmail(value);
@@ -82,8 +109,11 @@ export const useRegistration = () => {
 
   const handleRegister = useCallback(() => {
     let valid = true;
-    if (!name.trim()) {
-      setNameError('Name is required');
+    if (!normalizedUsername) {
+      setNameError('Username is required');
+      valid = false;
+    } else if (!/^[A-Za-z0-9_-]{3,32}$/.test(normalizedUsername)) {
+      setNameError('Use 3-32 letters, numbers, dash, or underscore');
       valid = false;
     }
 
@@ -109,8 +139,8 @@ export const useRegistration = () => {
     if (!password) {
       setPasswordError('Password is required');
       valid = false;
-    } else if (password.length < 6) {
-      setPasswordError('Password must be at least 6 characters');
+    } else if (password.length < 8) {
+      setPasswordError('Password must be at least 8 characters');
       valid = false;
     }
 
@@ -121,12 +151,24 @@ export const useRegistration = () => {
 
     if (!valid) return;
 
-    show.warn('Registration is not available yet.');
+    registerRequestRef.current = true;
+    dispatch(
+      register({
+        name: normalizedUsername,
+        username: normalizedUsername,
+        email: normalizedEmail,
+        phone: normalizedPhone,
+        password,
+        password_confirmation: confirmPassword,
+      }),
+    );
   }, [
-    name,
+    dispatch,
+    normalizedUsername,
     normalizedEmail,
     emailVerified,
     mobileNumber,
+    normalizedPhone,
     password,
     confirmPassword,
   ]);
@@ -153,7 +195,7 @@ export const useRegistration = () => {
       passwordError,
       confirmPasswordError,
       canVerifyEmail,
-      loading: false,
+      loading: Boolean(registerResponse.loading),
     },
     handlers: {
       setName,
