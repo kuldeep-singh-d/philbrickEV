@@ -9,12 +9,7 @@ import {
 
 import useStyles from './styles';
 import { AppText } from '@components';
-import Svg, {
-  Defs,
-  LinearGradient,
-  Rect,
-  Stop,
-} from 'react-native-svg';
+import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { useTheme } from '@react-navigation/native';
 import { useDeviceDimensions } from '@hooks/useDeviceDimensions';
 
@@ -82,7 +77,7 @@ const AppButton = ({
         {loader ? (
           <ActivityIndicator size="large" color={colors.white} />
         ) : (
-          <AppText medium label={title} style={styles.label} />
+          <AppText semibold label={title} style={styles.label} />
         )}
       </View>
     </Pressable>

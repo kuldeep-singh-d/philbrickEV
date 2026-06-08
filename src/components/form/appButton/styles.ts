@@ -12,7 +12,7 @@ const useStyles = () => {
       overflow: 'hidden',
       alignItems: 'center',
       justifyContent: 'center',
-      height: moderateHeight(5),
+      height: moderateHeight(5.3),
       marginTop: moderateHeight(1.5),
       borderRadius: moderateWidth(2.5),
     },

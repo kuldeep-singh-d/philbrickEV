@@ -8,13 +8,19 @@ import * as Screens from '@screens/index';
 const Stack = createNativeStackNavigator();
 
 export function Authorised() {
-  const { login } = routes.auth;
+  const { addDevice, dashboard, selectDevice, settings, updatePassword } =
+    routes.app;
+
   return (
     <Stack.Navigator
-      initialRouteName={login}
+      initialRouteName={dashboard}
       screenOptions={{ headerShown: false }}
     >
-      <Stack.Screen name={login} component={Screens.Dashboard} />
+      <Stack.Screen name={settings} component={Screens.Settings} />
+      <Stack.Screen name={addDevice} component={Screens.AddDevice} />
+      <Stack.Screen name={dashboard} component={Screens.Dashboard} />
+      <Stack.Screen name={selectDevice} component={Screens.SelectDevice} />
+      <Stack.Screen name={updatePassword} component={Screens.UpdatePassword} />
     </Stack.Navigator>
   );
 }

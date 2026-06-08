@@ -3,18 +3,18 @@ import {
   DefaultTheme,
   NavigationContainer,
 } from '@react-navigation/native';
+import { StyleSheet } from 'react-native';
 import BootSplash from 'react-native-bootsplash';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { StyleSheet } from 'react-native';
 
 //local imports
 import { useMemo } from 'react';
 import { useSelector } from '@hooks';
 import { colors } from '@assets/colors';
 import { Authorised } from './authorised';
-import { Unauthorised } from './unauthorised';
 import { ToastMessage } from '@components';
+import { Unauthorised } from './unauthorised';
 
 const lightTheme: Theme = {
   ...DefaultTheme,
@@ -39,11 +39,6 @@ const Navigation = () => {
 
   return (
     <SafeAreaProvider>
-      {/* <StatusBar
-        animated={true}
-        barStyle="dark-content"
-        showHideTransition={'fade'}
-      /> */}
       <NavigationContainer
         theme={theme}
         onReady={() => {
@@ -51,7 +46,7 @@ const Navigation = () => {
         }}
       >
         <GestureHandlerRootView style={styles.root}>
-          {status ? <Authorised /> : <Unauthorised />}
+          {!status ? <Authorised /> : <Unauthorised />}
           <ToastMessage />
         </GestureHandlerRootView>
       </NavigationContainer>

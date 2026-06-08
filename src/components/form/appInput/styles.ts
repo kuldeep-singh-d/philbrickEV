@@ -52,7 +52,7 @@ const useStyles = () => {
       fontFamily: fonts.regular,
       height: moderateHeight(5),
       textAlignVertical: 'center',
-      fontSize: moderateHeight(1.8),
+      fontSize: moderateHeight(1.7),
     },
 
     errorText: {

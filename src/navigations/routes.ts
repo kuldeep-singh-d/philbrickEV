@@ -3,28 +3,14 @@ export const routes = Object.freeze({
     login: 'login',
     registration: 'registration',
     forgotPassword: 'forgotPassword',
-    authBranch: 'authBranch',
   },
 
   app: {
-    tabs: 'tabs',
-
     profile: 'profile',
-    branches: 'branches',
+    settings: 'settings',
+    addDevice: 'addDevice',
     dashboard: 'dashboard',
-    transaction: 'transaction',
-  },
-
-  reports: {
-    reports: 'reports',
-    itemLedgerReport: 'itemLedgerReport',
-    designStockReport: 'designStockReport',
-    stockSummaryReport: 'stockSummaryReport',
-    branchSaleStockSummaryReport: 'branchSaleStockSummaryReport',
-  },
-  transactions: {
-    grnTransfer: 'grnTransfer',
-    itemPhotoUpload: 'itemPhotoUpload',
-    locationTransfer: 'locationTransfer',
+    selectDevice: 'selectDevice',
+    updatePassword: 'updatePassword',
   },
 });
