@@ -12,7 +12,7 @@ const useStyles = () => {
   return StyleSheet.create({
     label: {
       color: colors.text,
-      textAlign: 'justify',
+      // textAlign: 'justify',
       fontFamily: fonts.regular,
       includeFontPadding: false,
       textAlignVertical: 'center',

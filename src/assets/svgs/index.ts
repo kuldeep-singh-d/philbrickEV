@@ -1,10 +1,12 @@
-import Lock from './lock.svg';
 import Call from './call.svg';
+import Lock from './lock.svg';
 import User from './user.svg';
 import Mail from './email.svg';
+import Alert from './alert.svg';
 import Check from './check.svg';
 import Cross from './cross.svg';
 import Phone from './phone.svg';
+import Swipe from './swipe.svg';
 import DateIcon from './date.svg';
 import Logout from './logout.svg';
 import Pencil from './pencil.svg';
@@ -15,20 +17,26 @@ import Reports from './reports.svg';
 import Setting from './setting.svg';
 import CloseEye from './closeEye.svg';
 import Download from './download.svg';
+import Charging from './charging.svg';
 import BackArrow from './BackArrow.svg';
 import DownArrow from './downArrow.svg';
 import CheckWhite from './checkWhite.svg';
+import ChargingMode from './chargingMode.svg';
+import SessionStats from './sessionStats.svg';
 import ReportsActive from './reportsActive.svg';
 import SettingActive from './settingActive.svg';
+import ChargingStatus from './chargingStatus.svg';
 
 export const Svgs = Object.freeze({
+  Call,
   Mail,
   Lock,
-  Call,
   User,
+  Alert,
   Check,
   Cross,
   Phone,
+  Swipe,
   Logout,
   Pencil,
   Search,
@@ -38,10 +46,14 @@ export const Svgs = Object.freeze({
   Setting,
   CloseEye,
   Download,
+  Charging,
   BackArrow,
   DownArrow,
   CheckWhite,
+  ChargingMode,
+  SessionStats,
   ReportsActive,
   SettingActive,
   Date: DateIcon,
+  ChargingStatus,
 });

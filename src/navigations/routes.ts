@@ -8,6 +8,7 @@ export const routes = Object.freeze({
   app: {
     profile: 'profile',
     settings: 'settings',
+    alerts: 'alerts',
     addDevice: 'addDevice',
     dashboard: 'dashboard',
     selectDevice: 'selectDevice',
