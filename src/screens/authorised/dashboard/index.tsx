@@ -7,22 +7,12 @@ import {
   Pressable,
 } from 'react-native';
 
-import { AppText } from '@components';
 import { Svgs } from '@assets/svgs';
 import { images } from '@assets/imgaes';
 import { useDashboard } from './useDashboard';
 
 export const Dashboard = () => {
-  const {
-    styles,
-    isCharging,
-    swipePosition,
-    panResponder,
-    handleTrackLayout,
-    handleAlertsPress,
-    handleSettingsPress,
-    swipeLabel,
-  } = useDashboard();
+  const { styles, handleAlertsPress, handleSettingsPress } = useDashboard();
 
   return (
     <ImageBackground source={images.dashboardBG} style={styles.container}>

@@ -46,7 +46,7 @@ const Navigation = () => {
         }}
       >
         <GestureHandlerRootView style={styles.root}>
-          {!status ? <Authorised /> : <Unauthorised />}
+          {status ? <Authorised /> : <Unauthorised />}
           <ToastMessage />
         </GestureHandlerRootView>
       </NavigationContainer>

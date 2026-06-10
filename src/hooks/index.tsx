@@ -1,4 +1,5 @@
 export { default as useDebounce } from './useDebounce';
+export { default as useMqtt } from './useMqtt';
 
 import { useDispatch, useSelector } from './redux';
 import { useDeviceDimensions } from './useDeviceDimensions';

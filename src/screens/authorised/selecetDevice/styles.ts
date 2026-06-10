@@ -1,4 +1,3 @@
-import fonts from '@assets/fonts';
 import { StyleSheet } from 'react-native';
 import { useDeviceDimensions } from '@hooks';
 

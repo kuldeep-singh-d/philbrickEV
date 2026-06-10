@@ -26,6 +26,14 @@ export const useStyles = () => {
       borderRadius: moderateWidth(3),
       marginTop: moderateHeight(1.4),
     },
+    inputAction: {
+      paddingLeft: moderateWidth(3),
+      paddingVertical: moderateHeight(1),
+    },
+    inputActionText: {
+      color: '#0BB2C3',
+      fontSize: moderateHeight(1.5),
+    },
     forgotButton: {
       alignSelf: 'center',
       paddingHorizontal: moderateWidth(4),

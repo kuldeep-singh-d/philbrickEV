@@ -1,5 +1,4 @@
 import React from 'react';
-import { View } from 'react-native';
 import { useAddDevice } from './useAddDevice';
 import { AppButton, AppInput, AppText } from '@components';
 import AuthorisedScreen from '../components/AuthorisedScreen';

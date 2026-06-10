@@ -3,13 +3,17 @@ import { useNavigation } from '@react-navigation/native';
 import { LayoutChangeEvent, PanResponder } from 'react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { useDeviceDimensions } from '@hooks';
+import { useDeviceDimensions, useMqtt } from '@hooks';
 import useStyles from './styles';
 
 export const useDashboard = () => {
   const styles = useStyles();
   const navigation: any = useNavigation();
   const { moderateWidth } = useDeviceDimensions();
+  const mqtt = useMqtt({
+    autoConnect: true,
+    autoSubscribeTopic: 'ev/#',
+  });
 
   const [isCharging, setIsCharging] = useState(false);
   const [swipePosition, setSwipePosition] = useState(0);
@@ -99,6 +103,7 @@ export const useDashboard = () => {
     handleAlertsPress,
     handleSettingsPress,
     swipeLabel,
+    mqtt,
   };
 };
 
