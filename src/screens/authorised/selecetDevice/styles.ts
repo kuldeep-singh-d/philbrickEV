@@ -28,6 +28,8 @@ export const useStyles = () => {
     },
     deviceCard: {
       width: '100%',
+      flexDirection: 'row',
+      alignItems: 'center',
       borderWidth: 1,
       borderColor: '#D1D5DB',
       borderRadius: moderateWidth(3),
@@ -35,6 +37,18 @@ export const useStyles = () => {
       paddingHorizontal: moderateWidth(4),
       marginBottom: moderateHeight(1.5),
       backgroundColor: '#FFFFFF',
+    },
+    selectedDeviceCard: {
+      borderColor: '#3AC34B',
+    },
+    pressedDeviceCard: {
+      opacity: 0.8,
+    },
+    deviceInfo: {
+      flex: 1,
+    },
+    selectedDot: {
+      marginLeft: moderateWidth(3),
     },
     deviceName: {
       fontSize: moderateHeight(1.8),
@@ -44,6 +58,17 @@ export const useStyles = () => {
       color: '#6B7280',
       fontSize: moderateHeight(1.5),
       lineHeight: moderateHeight(2.2),
+    },
+    actionsContainer: {
+      marginTop: 'auto',
+      marginBottom: moderateHeight(4),
+    },
+    buttonRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+    },
+    halfButton: {
+      width: '48%',
     },
   });
 };

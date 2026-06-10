@@ -15,6 +15,7 @@ import logout from './slices/auth/logout';
 import registrationOtp from './slices/auth/registrationOtp';
 import devices from './slices/devices/devices';
 import createDevice from './slices/devices/createDevice';
+import selectedDevice from './slices/devices/selectedDevice';
 
 const reducers = combineReducers({
   login,
@@ -26,6 +27,7 @@ const reducers = combineReducers({
   registrationOtp,
   devices,
   createDevice,
+  selectedDevice,
   appTheme,
   loginState,
   handalLoading,

@@ -1,6 +1,7 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 //local imports
+import { useSelector } from '@hooks';
 import { routes } from '../routes';
 import * as Screens from '@screens/index';
 // import { routes } from '@navigation/routes';
@@ -8,6 +9,7 @@ import * as Screens from '@screens/index';
 const Stack = createNativeStackNavigator();
 
 export function Authorised() {
+  const selectedDevice = useSelector(state => state.selectedDevice.data);
   const {
     addDevice,
     alerts,
@@ -19,7 +21,7 @@ export function Authorised() {
 
   return (
     <Stack.Navigator
-      initialRouteName={dashboard}
+      initialRouteName={selectedDevice ? dashboard : selectDevice}
       screenOptions={{ headerShown: false }}
     >
       <Stack.Screen name={settings} component={Screens.Settings} />
