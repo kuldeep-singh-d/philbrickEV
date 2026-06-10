@@ -1,7 +1,7 @@
 import React from 'react';
 import { AppText } from '@components';
 import { useAlerts } from './useAlerts';
-import AuthorisedScreen from '../components/AuthorisedScreen';
+import AuthorisedScreen from '../../../components/container/AuthorisedScreen';
 
 export const Alerts = () => {
   const { styles } = useAlerts();

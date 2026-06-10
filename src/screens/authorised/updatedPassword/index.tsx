@@ -1,9 +1,9 @@
 import React from 'react';
-import { Pressable } from 'react-native';
+import { ActivityIndicator, Pressable } from 'react-native';
 
 import { Svgs } from '@assets/svgs';
 import { AppButton, AppInput, AppText } from '@components';
-import AuthorisedScreen from '../components/AuthorisedScreen';
+import AuthorisedScreen from '../../../components/container/AuthorisedScreen';
 
 import { useUpdatePassword } from './useUpdatePassword';
 
@@ -21,6 +21,7 @@ export const UpdatePassword = () => {
           value={states.email}
           autoComplete="email"
           error={states.emailError}
+          editable={!states.emailLocked}
           returnKeyType="next"
           keyboardType="email-address"
           textContentType="emailAddress"
@@ -58,13 +59,48 @@ export const UpdatePassword = () => {
           rightElement={
             <Pressable
               hitSlop={10}
+              disabled={states.loading || states.otpExpired}
               style={styles.inputAction}
               onPress={handlers.handleVerifyOtp}
             >
-              <AppText semibold label="Verify" style={styles.inputActionText} />
+              {states.loading ? (
+                <ActivityIndicator size="small" color="#0BB2C3" />
+              ) : (
+                <AppText
+                  semibold
+                  label="Verify"
+                  style={styles.inputActionText}
+                />
+              )}
             </Pressable>
           }
         />
+      )}
+
+      {states.otpSent && (
+        <>
+          {states.otpExpired ? (
+            <Pressable
+              hitSlop={10}
+              disabled={states.loading}
+              style={styles.resendOtpButton}
+              onPress={handlers.handleResendOtp}
+            >
+              <AppText
+                semibold
+                centered
+                label="Resend OTP"
+                style={styles.inputActionText}
+              />
+            </Pressable>
+          ) : (
+            <AppText
+              centered
+              style={styles.otpTimerText}
+              label={`This code will expire in ${states.otpCountdown} minutes.`}
+            />
+          )}
+        </>
       )}
 
       {states.otpVerified && (
@@ -116,17 +152,6 @@ export const UpdatePassword = () => {
         </>
       )}
 
-      {/* <Pressable
-        hitSlop={10}
-        style={styles.forgotButton}
-        onPress={handlers.handleForgotPassword}
-      >
-        <AppText
-          centered
-          style={styles.forgotText}
-          label="Forgot your old password?"
-        />
-      </Pressable> */}
     </AuthorisedScreen>
   );
 };

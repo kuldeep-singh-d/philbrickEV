@@ -14,8 +14,8 @@ export const useLogin = () => {
   const loginResponse = useSelector(state => state.login);
 
   const navigation: any = useNavigation();
-  // Dummy Credes: user@email.com || P@ssw0rd
-  const [identifier, setIdentifier] = useState('user@email.com');
+  // Dummy Credes: kuldeep@email.com || P@ssw0rd
+  const [identifier, setIdentifier] = useState('kuldeep@email.com');
   const [password, setPassword] = useState('P@ssw0rd');
   const [identifierError, setIdentifierError] = useState('');
   const [passwordError, setPasswordError] = useState('');

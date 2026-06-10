@@ -16,4 +16,5 @@ export const apiRoutes = {
   registrationResendOtp: '/api/v1/auth/registration/resend-otp',
   logout: '/api/v1/auth/logout',
   logoutAll: '/api/v1/auth/logout-all',
+  devices: '/api/v1/devices',
 };

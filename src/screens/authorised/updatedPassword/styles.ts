@@ -34,6 +34,17 @@ export const useStyles = () => {
       color: '#0BB2C3',
       fontSize: moderateHeight(1.5),
     },
+    resendOtpButton: {
+      alignSelf: 'center',
+      paddingHorizontal: moderateWidth(4),
+      paddingVertical: moderateHeight(1),
+      marginBottom: moderateHeight(1),
+    },
+    otpTimerText: {
+      color: '#6B7280',
+      fontSize: moderateHeight(1.4),
+      marginBottom: moderateHeight(1),
+    },
     forgotButton: {
       alignSelf: 'center',
       paddingHorizontal: moderateWidth(4),

@@ -34,12 +34,16 @@ export const useStyles = () => {
       fontFamily: fonts.semibold,
       fontSize: moderateHeight(1.5),
     },
+    otpTimerText: {
+      color: '#f87f6f',
+      marginTop: -moderateHeight(3),
+      marginBottom: moderateHeight(1.2),
+      fontSize: moderateHeight(1.45),
+    },
     resendOtpButton: {
-      // alignSelf: 'center',
       minWidth: moderateWidth(28),
       alignItems: 'flex-end',
       paddingVertical: moderateHeight(0.5),
-      // paddingHorizontal: moderateWidth(4),
       marginBottom: moderateHeight(1),
     },
     accountRow: {

@@ -9,6 +9,57 @@ export const useStyles = () => {
     content: {
       paddingTop: moderateHeight(2.6),
     },
+    profileCard: {
+      width: '100%',
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: '#D8F5DD',
+      backgroundColor: '#F0FBF2',
+      borderRadius: moderateWidth(4),
+      marginBottom: moderateHeight(1),
+      paddingHorizontal: moderateWidth(4),
+      paddingVertical: moderateHeight(1.5),
+    },
+    avatar: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      width: moderateWidth(16),
+      height: moderateWidth(16),
+      borderRadius: moderateWidth(8),
+      backgroundColor: '#0BB2C3',
+      marginRight: moderateWidth(4),
+    },
+    avatarText: {
+      color: '#FFFFFF',
+      fontFamily: fonts.semibold,
+      fontSize: moderateHeight(2.4),
+    },
+    profileContent: {
+      flex: 1,
+    },
+    profileName: {
+      fontSize: moderateHeight(2),
+      lineHeight: moderateHeight(2.8),
+    },
+    profileUsername: {
+      color: '#0A8E9B',
+      fontSize: moderateHeight(1.4),
+      marginTop: moderateHeight(0.1),
+      // marginBottom: moderateHeight(0.7),
+    },
+    detailRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: moderateHeight(0.6),
+    },
+    detailText: {
+      flex: 1,
+      color: '#000000',
+      fontSize: moderateHeight(1.5),
+      lineHeight: moderateHeight(2),
+      marginLeft: moderateWidth(2),
+    },
     heading: {
       fontSize: moderateHeight(2),
       marginBottom: moderateHeight(1),

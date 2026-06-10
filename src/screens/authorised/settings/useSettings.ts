@@ -20,6 +20,31 @@ export const useSettings = () => {
   const navigation: any = useNavigation();
   const logoutRequestRef = useRef(false);
   const logoutResponse = useSelector(state => state.logout);
+  const loginResponse = useSelector(state => state.login);
+  const registerResponse = useSelector(state => state.register);
+  const customer =
+    loginResponse.data?.data?.customer ||
+    registerResponse.data?.data?.customer ||
+    {};
+
+  const profile = useMemo(() => {
+    const name = customer.name?.trim() || customer.username?.trim() || 'User';
+    const initials =
+      name
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part: string) => part.charAt(0).toUpperCase())
+        .join('') || 'U';
+
+    return {
+      name,
+      initials,
+      username: customer.username?.trim() || '',
+      email: customer.email?.trim() || '',
+      phone: customer.phone?.trim() || '',
+    };
+  }, [customer.email, customer.name, customer.phone, customer.username]);
 
   const handleAddDevice = useCallback(() => {
     navigation.navigate(routes.app.addDevice);
@@ -50,18 +75,27 @@ export const useSettings = () => {
   }, [dispatch]);
 
   useEffect(() => {
-    const requestFinished =
-      logoutResponse.data !== undefined || logoutResponse.error !== undefined;
-
-    if (!logoutRequestRef.current || !requestFinished) {
+    if (!logoutRequestRef.current || logoutResponse.data === undefined) {
       return;
     }
 
     logoutRequestRef.current = false;
     handleConfirmedLogout();
-  }, [handleConfirmedLogout, logoutResponse.data, logoutResponse.error]);
+  }, [handleConfirmedLogout, logoutResponse.data]);
+
+  useEffect(() => {
+    if (!logoutRequestRef.current || !logoutResponse.error) {
+      return;
+    }
+
+    logoutRequestRef.current = false;
+  }, [logoutResponse.error]);
 
   const handleLogout = useCallback(() => {
+    if (logoutResponse.loading || logoutRequestRef.current) {
+      return;
+    }
+
     Alert.alert('Logout', 'Are you sure you want to logout?', [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -74,7 +108,7 @@ export const useSettings = () => {
         },
       },
     ]);
-  }, [dispatch]);
+  }, [dispatch, logoutResponse.loading]);
 
   const options = useMemo(
     () => [
@@ -82,7 +116,12 @@ export const useSettings = () => {
       { title: 'Select Device', onPress: handleSelectDevice },
       { title: 'Update Password', onPress: handleUpdatePassword },
       { title: 'Device Firmware update', onPress: handleFirmwareUpdate },
-      { title: 'Logout', onPress: handleLogout },
+      {
+        title: 'Logout',
+        onPress: handleLogout,
+        loader: Boolean(logoutResponse.loading),
+        disabled: Boolean(logoutResponse.loading),
+      },
     ],
     [
       handleAddDevice,
@@ -90,12 +129,14 @@ export const useSettings = () => {
       handleLogout,
       handleSelectDevice,
       handleUpdatePassword,
+      logoutResponse.loading,
     ],
   );
 
   return {
     styles,
     options,
+    profile,
   };
 };
 

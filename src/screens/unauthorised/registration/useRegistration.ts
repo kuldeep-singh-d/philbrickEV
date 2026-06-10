@@ -5,7 +5,6 @@ import helpers, { show } from '@utils/helpers';
 import useStyles from './styles';
 import { useDispatch, useSelector } from '@hooks';
 import { register } from '@store/slices/auth/register';
-import { setLoginState } from '@store/slices/localStates/loginState';
 import { getApiFieldError } from '@utils/apiError';
 import { getMobileDeviceDescriptor } from '@utils/mobileDevice';
 import {
@@ -13,6 +12,8 @@ import {
   resendRegistrationOtp,
   sendRegistrationOtp,
 } from '@store/slices/auth/registrationOtp';
+
+const OTP_EXPIRY_SECONDS = 5 * 60;
 
 export const useRegistration = () => {
   const styles = useStyles();
@@ -38,6 +39,7 @@ export const useRegistration = () => {
   const [confirmPasswordError, setConfirmPasswordError] = useState('');
 
   const [otpSent, setOtpSent] = useState(false);
+  const [otpSecondsLeft, setOtpSecondsLeft] = useState(0);
   const [preparingDevice, setPreparingDevice] = useState(false);
   const registerResponse = useSelector(state => state.register);
   const registrationOtpResponse = useSelector(state => state.registrationOtp);
@@ -50,6 +52,17 @@ export const useRegistration = () => {
     [normalizedEmail],
   );
   const otpReady = /^\d{6}$/.test(otp.trim());
+  const otpExpired = otpSent && otpSecondsLeft <= 0;
+  const otpCountdown = useMemo(() => {
+    const minutes = Math.floor(otpSecondsLeft / 60)
+      .toString()
+      .padStart(2, '0');
+    const seconds = Math.max(otpSecondsLeft % 60, 0)
+      .toString()
+      .padStart(2, '0');
+
+    return `${minutes}:${seconds}`;
+  }, [otpSecondsLeft]);
 
   const normalizedPhone = useMemo(() => {
     const digits = mobileNumber.replace(/\D/g, '');
@@ -67,18 +80,29 @@ export const useRegistration = () => {
     }
 
     registerRequestRef.current = false;
-    show.success(
-      registerResponse.data?.message || 'Registration successful.',
-    );
-    dispatch(setLoginState(true));
-  }, [dispatch, registerResponse.data]);
+    show.success(registerResponse.data?.message || 'Registration successful.');
+    navigation.navigate(routes.auth.login);
+  }, [navigation, registerResponse.data]);
 
   const handleEmailChange = useCallback((value: string) => {
     setEmail(value);
     setOtpSent(false);
+    setOtpSecondsLeft(0);
     setOtp('');
     setOtpError('');
   }, []);
+
+  useEffect(() => {
+    if (!otpSent || otpSecondsLeft <= 0) {
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setOtpSecondsLeft(current => Math.max(current - 1, 0));
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [otpSecondsLeft, otpSent]);
 
   useEffect(() => {
     if (!otpRequestRef.current || !registrationOtpResponse.data) {
@@ -89,6 +113,7 @@ export const useRegistration = () => {
     setOtpSent(true);
     setOtp('');
     setOtpError('');
+    setOtpSecondsLeft(OTP_EXPIRY_SECONDS);
     show.success(registrationOtpResponse.data?.message || 'OTP sent.');
   }, [registrationOtpResponse.data]);
 
@@ -155,6 +180,7 @@ export const useRegistration = () => {
     otpRequestRef.current = true;
     setOtp('');
     setOtpError('');
+    setOtpSecondsLeft(0);
     dispatch(clearRegistrationOtpRes());
     dispatch(resendRegistrationOtp({ email: normalizedEmail }));
   }, [
@@ -278,10 +304,10 @@ export const useRegistration = () => {
       confirmPasswordError,
       canVerifyEmail,
       otpReady,
+      otpExpired,
+      otpCountdown,
       otpLoading: Boolean(registrationOtpResponse.loading),
-      registrationLoading: Boolean(
-        registerResponse.loading || preparingDevice,
-      ),
+      registrationLoading: Boolean(registerResponse.loading || preparingDevice),
     },
     handlers: {
       setFullName,

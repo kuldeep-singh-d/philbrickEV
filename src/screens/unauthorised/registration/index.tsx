@@ -81,21 +81,28 @@ export const Registration = () => {
                 onChangeText={handlers.setOtp}
                 setError={handlers.setOtpError}
               />
-              <Pressable
-                disabled={states.otpLoading}
-                style={styles.resendOtpButton}
-                onPress={handlers.handleResendOtp}
-              >
-                {states.otpLoading ? (
-                  <ActivityIndicator size="small" color="#079CDD" />
-                ) : (
-                  <AppText
-                    semibold
-                    label="Resend OTP"
-                    style={styles.inputActionText}
-                  />
-                )}
-              </Pressable>
+              {states.otpExpired ? (
+                <Pressable
+                  disabled={states.otpLoading}
+                  style={styles.resendOtpButton}
+                  onPress={handlers.handleResendOtp}
+                >
+                  {states.otpLoading ? (
+                    <ActivityIndicator size="small" color="#079CDD" />
+                  ) : (
+                    <AppText
+                      semibold
+                      label="Resend OTP"
+                      style={styles.inputActionText}
+                    />
+                  )}
+                </Pressable>
+              ) : (
+                <AppText
+                  style={styles.otpTimerText}
+                  label={`This code will expire in ${states.otpCountdown} minutes.`}
+                />
+              )}
             </>
           )}
 
