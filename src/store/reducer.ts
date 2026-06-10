@@ -1,5 +1,4 @@
 import { combineReducers } from 'redux';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // global states
 import appTheme from './slices/localStates/appTheme';
@@ -12,6 +11,8 @@ import register from './slices/auth/register';
 import verifyOtp from './slices/auth/verifyOtp';
 import resetPassword from './slices/auth/resetPassword';
 import forgotPassword from './slices/auth/forgotPassword';
+import logout from './slices/auth/logout';
+import registrationOtp from './slices/auth/registrationOtp';
 
 const reducers = combineReducers({
   login,
@@ -19,16 +20,16 @@ const reducers = combineReducers({
   verifyOtp,
   resetPassword,
   forgotPassword,
+  logout,
+  registrationOtp,
   appTheme,
   loginState,
   handalLoading,
 });
 
-// root reducer to detect each and every reducer passed by
-// handled logout reducer here and empty all the reducers and local storage
+// Reset user-scoped Redux state when the active login is cleared.
 const rootReducer = (state: any, action: any) => {
   if (action.type === 'login/reset') {
-    AsyncStorage.clear().catch(() => {});
     state = {
       appTheme: state?.appTheme,
       loginState: state?.loginState,

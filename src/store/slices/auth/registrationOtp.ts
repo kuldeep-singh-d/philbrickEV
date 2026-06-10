@@ -1,18 +1,23 @@
 import { createSlice } from '@reduxjs/toolkit';
+
 import { apiCallBegan } from '@store/apiActions';
 import { apiRoutes, methods } from '@store/apiRoutes';
-import type { MobileDeviceDescriptor } from '@utils/mobileDevice';
+
+interface RegistrationOtpPayload {
+  email: string;
+}
 
 const slice = createSlice({
-  name: 'login',
+  name: 'registration-otp',
   initialState: {
     data: undefined as any | undefined,
     loading: false,
-    error: undefined,
+    error: undefined as any | undefined,
   },
   reducers: {
     requested: state => {
       state.loading = true;
+      state.error = undefined;
     },
     success: (state, action) => {
       state.data = action.payload;
@@ -35,21 +40,21 @@ const slice = createSlice({
 export const { requested, success, failed, reset } = slice.actions;
 export default slice.reducer;
 
-interface LoginPayload {
-  identifier: string;
-  password: string;
-  device: MobileDeviceDescriptor;
-}
-
-export const login = (data: LoginPayload) =>
+const requestRegistrationOtp = (url: string, data: RegistrationOtpPayload) =>
   apiCallBegan({
     data,
     isRowData: true,
-    url: apiRoutes.login,
+    url,
     method: methods.POST,
     onFailed: failed.type,
     onStart: requested.type,
     onSuccess: success.type,
   });
 
-export const clearLoginRes = () => reset();
+export const sendRegistrationOtp = (data: RegistrationOtpPayload) =>
+  requestRegistrationOtp(apiRoutes.registrationSendOtp, data);
+
+export const resendRegistrationOtp = (data: RegistrationOtpPayload) =>
+  requestRegistrationOtp(apiRoutes.registrationResendOtp, data);
+
+export const clearRegistrationOtpRes = () => reset();

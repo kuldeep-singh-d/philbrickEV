@@ -1,4 +1,6 @@
 import { createSlice } from '@reduxjs/toolkit';
+import { apiCallBegan } from '@store/apiActions';
+import { apiRoutes, methods } from '@store/apiRoutes';
 
 const slice = createSlice({
   name: 'logout',
@@ -8,6 +10,20 @@ const slice = createSlice({
     error: undefined,
   },
   reducers: {
+    requested: state => {
+      state.loading = true;
+      state.error = undefined;
+    },
+    success: (state, action) => {
+      state.data = action.payload;
+      state.loading = false;
+      state.error = undefined;
+    },
+    failed: (state, action) => {
+      state.data = undefined;
+      state.loading = false;
+      state.error = action.payload;
+    },
     reset: state => {
       state.data = undefined;
       state.loading = false;
@@ -16,7 +32,17 @@ const slice = createSlice({
   },
 });
 
-export const { reset } = slice.actions;
+export const { requested, success, failed, reset } = slice.actions;
 export default slice.reducer;
+
+export const logout = () =>
+  apiCallBegan({
+    isRowData: true,
+    url: apiRoutes.logout,
+    method: methods.POST,
+    onFailed: failed.type,
+    onStart: requested.type,
+    onSuccess: success.type,
+  });
 
 export const clearLogoutResponse = () => reset();

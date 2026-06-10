@@ -14,6 +14,7 @@ import {
   clearResetPasswordRes,
   resetPassword,
 } from '@store/slices/auth/resetPassword';
+import { getApiFieldError } from '@utils/apiError';
 
 const OTP_EXPIRY_SECONDS = 5 * 60;
 
@@ -135,6 +136,32 @@ export const useForgotPass = () => {
     dispatch(clearResetPasswordRes());
     navigation.navigate(routes.auth.login);
   }, [dispatch, navigation, resetPasswordResponse.data]);
+
+  useEffect(() => {
+    if (forgotPasswordResponse.error) {
+      otpRequestRef.current = false;
+      setEmailError(
+        getApiFieldError(forgotPasswordResponse.error, 'email'),
+      );
+    }
+  }, [forgotPasswordResponse.error]);
+
+  useEffect(() => {
+    if (verifyOtpResponse.error) {
+      verifyRequestRef.current = false;
+      setOtpError(getApiFieldError(verifyOtpResponse.error, 'code'));
+    }
+  }, [verifyOtpResponse.error]);
+
+  useEffect(() => {
+    if (resetPasswordResponse.error) {
+      resetRequestRef.current = false;
+      setNewPasswordError(
+        getApiFieldError(resetPasswordResponse.error, 'password') ||
+          getApiFieldError(resetPasswordResponse.error, 'reset_token'),
+      );
+    }
+  }, [resetPasswordResponse.error]);
 
   const handleEmailChange = useCallback((value: string) => {
     setEmail(value);

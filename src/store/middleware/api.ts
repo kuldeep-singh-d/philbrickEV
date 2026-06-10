@@ -2,6 +2,7 @@ import axios from 'axios';
 // Internal Imports
 import { BASE_URL } from '@env';
 import { show } from '@utils/helpers';
+import { getApiErrorMessage } from '@utils/apiError';
 import * as actions from '@store/apiActions';
 import { clearLoginRes } from '@store/slices/auth/login';
 import { clearLogoutResponse } from '@store/slices/auth/logout';
@@ -96,14 +97,16 @@ const api =
       const responseData = response?.data;
       // console.log(url + ' Response=>>\n', response);
       // Check for API-specific failure even on 200 status
-      if (responseData?.data?.success === false) {
-        const apiError = responseData?.data?.message || 'Something went wrong';
+      if (responseData?.success === false) {
+        const apiError = getApiErrorMessage(responseData);
 
         show.error(apiError);
         console.log('[success == false]', responseData);
 
-        dispatch({ type: onFailed, payload: apiError });
-        dispatch(actions.apiCallFailed(apiError));
+        if (onFailed) {
+          dispatch({ type: onFailed, payload: responseData });
+        }
+        dispatch(actions.apiCallFailed(responseData));
 
         dispatch(handalLoading(false));
         if (onReset) dispatch({ type: onReset });
@@ -120,26 +123,18 @@ const api =
     } catch (error: any) {
       console.log(url, '[error]', error?.response || error);
       const statusCode = error?.response?.status;
-      const serverMessage = error?.response?.data?.message;
+      const responseData = error?.response?.data;
 
-      let errorMessage;
-      if (!statusCode) {
-        errorMessage = 'Network Error.';
-      } else {
-        errorMessage =
-          serverMessage ||
-          `Server Message: ${statusCode}, ${'Something went wrong'}`;
-      }
+      const errorMessage = !statusCode
+        ? 'Network Error.'
+        : getApiErrorMessage(
+            responseData,
+            `Server Message: ${statusCode}, Something went wrong`,
+          );
 
       // Handle common auth/session-related errors
       if (statusCode === 401) {
         show.error(`${statusCode}: Unauthorized`);
-        // dispatch(logout());
-        dispatch(clearLoginRes());
-        dispatch(setLoginState(false));
-        dispatch(clearLogoutResponse());
-      } else if (statusCode === 400) {
-        show.warn('Your session has expired. Please log in again.');
         // dispatch(logout());
         dispatch(clearLoginRes());
         dispatch(setLoginState(false));
@@ -154,7 +149,10 @@ const api =
 
       dispatch(actions.apiCallFailed(error));
       if (onFailed) {
-        dispatch({ type: onFailed, payload: errorMessage });
+        dispatch({
+          type: onFailed,
+          payload: responseData || { message: errorMessage },
+        });
       }
 
       dispatch(handalLoading(false));

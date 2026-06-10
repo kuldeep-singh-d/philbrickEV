@@ -2,7 +2,13 @@ import React from 'react';
 import { Svgs } from '@assets/svgs';
 import { images } from '@assets/imgaes';
 import useRegistration from './useRegistration';
-import { ImageBackground, Pressable, View, StatusBar } from 'react-native';
+import {
+  ActivityIndicator,
+  ImageBackground,
+  Pressable,
+  View,
+  StatusBar,
+} from 'react-native';
 import { AppButton, AppInput, AppText, KeyboardAvoider } from '@components';
 
 export const Registration = () => {
@@ -36,22 +42,21 @@ export const Registration = () => {
             onChangeText={handlers.setEmail}
             setError={handlers.setEmailError}
             rightElement={
-              states.emailVerified ? (
-                <AppText
-                  semibold
-                  label="Verified"
-                  style={styles.verifiedText}
-                />
-              ) : states.canVerifyEmail ? (
+              !states.otpSent && states.canVerifyEmail ? (
                 <Pressable
+                  disabled={states.otpLoading}
                   onPress={handlers.handleSendOtp}
                   style={styles.inputAction}
                 >
-                  <AppText
-                    semibold
-                    label="Verify"
-                    style={styles.inputActionText}
-                  />
+                  {states.otpLoading ? (
+                    <ActivityIndicator size="small" color="#079CDD" />
+                  ) : (
+                    <AppText
+                      semibold
+                      label="Send OTP"
+                      style={styles.inputActionText}
+                    />
+                  )}
                 </Pressable>
               ) : null
             }
@@ -64,39 +69,61 @@ export const Registration = () => {
           />
 
           {states.otpSent && (
-            <AppInput
-              title="OTP"
-              gradientBorder
-              value={states.otp}
-              error={states.otpError}
-              keyboardType="number-pad"
-              placeholder="Enter OTP"
-              maxLength={6}
-              onChangeText={handlers.setOtp}
-              setError={handlers.setOtpError}
-              rightElement={
-                <Pressable
-                  onPress={handlers.handleVerifyOtp}
-                  style={styles.inputAction}
-                >
+            <>
+              <AppInput
+                title="OTP"
+                gradientBorder
+                value={states.otp}
+                error={states.otpError}
+                keyboardType="number-pad"
+                placeholder="Enter the 6-digit OTP"
+                maxLength={6}
+                onChangeText={handlers.setOtp}
+                setError={handlers.setOtpError}
+              />
+              <Pressable
+                disabled={states.otpLoading}
+                style={styles.resendOtpButton}
+                onPress={handlers.handleResendOtp}
+              >
+                {states.otpLoading ? (
+                  <ActivityIndicator size="small" color="#079CDD" />
+                ) : (
                   <AppText
                     semibold
-                    label="Verify"
+                    label="Resend OTP"
                     style={styles.inputActionText}
                   />
-                </Pressable>
-              }
-            />
+                )}
+              </Pressable>
+            </>
           )}
+
+          <AppInput
+            title="Full Name"
+            gradientBorder
+            value={states.fullName}
+            error={states.fullNameError}
+            autoCapitalize="words"
+            placeholder="Your full name"
+            onChangeText={handlers.setFullName}
+            setError={handlers.setFullNameError}
+            leftIcon={
+              <Svgs.User
+                width={constants.iconSize}
+                height={constants.iconSize}
+              />
+            }
+          />
 
           <AppInput
             title="Username"
             gradientBorder
-            value={states.name}
-            error={states.nameError}
+            value={states.username}
+            error={states.usernameError}
             placeholder="Your username"
-            onChangeText={handlers.setName}
-            setError={handlers.setNameError}
+            onChangeText={handlers.setUsername}
+            setError={handlers.setUsernameError}
             leftIcon={
               <Svgs.User
                 width={constants.iconSize}
@@ -163,8 +190,13 @@ export const Registration = () => {
 
           <AppButton
             title="Sign up"
-            loader={states.loading}
-            disabled={!states.emailVerified || states.loading}
+            loader={states.registrationLoading}
+            disabled={
+              !states.otpSent ||
+              !states.otpReady ||
+              states.otpLoading ||
+              states.registrationLoading
+            }
             style={styles.registerButton}
             onPress={handlers.handleRegister}
           />

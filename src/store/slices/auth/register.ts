@@ -1,6 +1,7 @@
 import { createSlice } from '@reduxjs/toolkit';
 import { apiCallBegan } from '@store/apiActions';
 import { apiRoutes, methods } from '@store/apiRoutes';
+import type { MobileDeviceDescriptor } from '@utils/mobileDevice';
 
 interface RegisterPayload {
   name: string;
@@ -8,6 +9,8 @@ interface RegisterPayload {
   email: string;
   phone: string;
   password: string;
+  otp: string;
+  device: MobileDeviceDescriptor;
   password_confirmation: string;
 }
 

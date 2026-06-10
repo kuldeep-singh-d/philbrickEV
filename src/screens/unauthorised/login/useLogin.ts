@@ -1,11 +1,12 @@
 import { routes } from '@routes';
 import { useStyles } from './styles';
-import helpers from '@utils/helpers';
 import { login } from '@store/slices/auth/login';
 import { useDispatch, useSelector } from '@hooks';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { setLoginState } from '@store/slices/localStates/loginState';
+import { getApiFieldError } from '@utils/apiError';
+import { getMobileDeviceDescriptor } from '@utils/mobileDevice';
 
 export const useLogin = () => {
   const styles = useStyles();
@@ -13,11 +14,12 @@ export const useLogin = () => {
   const loginResponse = useSelector(state => state.login);
 
   const navigation: any = useNavigation();
-  // Dummy Credes: test@email.com || P@ssw0rd
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [emailError, setEmailError] = useState('');
+  // Dummy Credes: user@email.com || P@ssw0rd
+  const [identifier, setIdentifier] = useState('user@email.com');
+  const [password, setPassword] = useState('P@ssw0rd');
+  const [identifierError, setIdentifierError] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [preparingDevice, setPreparingDevice] = useState(false);
 
   useEffect(() => {
     const token = loginResponse.data?.data?.token;
@@ -26,15 +28,24 @@ export const useLogin = () => {
     }
   }, [dispatch, loginResponse.data]);
 
-  const handleLogin = useCallback(() => {
-    const normalizedEmail = email.trim().toLowerCase();
+  useEffect(() => {
+    if (!loginResponse.error) {
+      return;
+    }
+
+    setIdentifierError(
+      getApiFieldError(loginResponse.error, 'identifier') ||
+        getApiFieldError(loginResponse.error, 'device'),
+    );
+    setPasswordError(getApiFieldError(loginResponse.error, 'password'));
+  }, [loginResponse.error]);
+
+  const handleLogin = useCallback(async () => {
+    const normalizedIdentifier = identifier.trim();
     let valid = true;
 
-    if (!normalizedEmail) {
-      setEmailError('Email is required');
-      valid = false;
-    } else if (!helpers.isValidEmail(normalizedEmail)) {
-      setEmailError('Enter a valid email address');
+    if (!normalizedIdentifier) {
+      setIdentifierError('Username, email, or phone is required');
       valid = false;
     }
 
@@ -46,12 +57,20 @@ export const useLogin = () => {
       valid = false;
     }
 
-    if (!valid || loginResponse.loading) {
+    if (!valid || loginResponse.loading || preparingDevice) {
       return;
     }
 
-    dispatch(login({ identifier: normalizedEmail, password }));
-  }, [dispatch, email, loginResponse.loading, password]);
+    setPreparingDevice(true);
+
+    try {
+      const device = await getMobileDeviceDescriptor();
+      console.log('\n ~ useLogin ~ device:', device);
+      dispatch(login({ identifier: normalizedIdentifier, password, device }));
+    } finally {
+      setPreparingDevice(false);
+    }
+  }, [dispatch, identifier, loginResponse.loading, password, preparingDevice]);
 
   const handleForgotPassword = useCallback(() => {
     navigation.navigate(routes.auth.forgotPassword);
@@ -64,16 +83,16 @@ export const useLogin = () => {
   return {
     styles,
     states: {
-      email,
+      identifier,
       password,
-      emailError,
+      identifierError,
       passwordError,
-      loading: Boolean(loginResponse.loading),
+      loading: Boolean(loginResponse.loading || preparingDevice),
     },
     handlers: {
-      setEmail,
+      setIdentifier,
       setPassword,
-      setEmailError,
+      setIdentifierError,
       setPasswordError,
       handleLogin,
       handleForgotPassword,

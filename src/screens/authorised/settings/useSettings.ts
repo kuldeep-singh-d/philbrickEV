@@ -1,19 +1,25 @@
 import { routes } from '@routes';
 import { show } from '@utils/helpers';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { Alert } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { useDispatch } from '@hooks';
+import { useDispatch, useSelector } from '@hooks';
+import { clearUserStorage } from '@utils/mobileDevice';
 import { clearLoginRes } from '@store/slices/auth/login';
 import { setLoginState } from '@store/slices/localStates/loginState';
+import {
+  clearLogoutResponse,
+  logout,
+} from '@store/slices/auth/logout';
 import useStyles from './styles';
 
 export const useSettings = () => {
   const styles = useStyles();
   const dispatch = useDispatch();
   const navigation: any = useNavigation();
+  const logoutRequestRef = useRef(false);
+  const logoutResponse = useSelector(state => state.logout);
 
   const handleAddDevice = useCallback(() => {
     navigation.navigate(routes.app.addDevice);
@@ -35,13 +41,25 @@ export const useSettings = () => {
     dispatch(clearLoginRes());
 
     try {
-      await AsyncStorage.clear();
+      await clearUserStorage();
     } catch {
       show.error('Unable to clear all stored data.');
     } finally {
       dispatch(setLoginState(false));
     }
   }, [dispatch]);
+
+  useEffect(() => {
+    const requestFinished =
+      logoutResponse.data !== undefined || logoutResponse.error !== undefined;
+
+    if (!logoutRequestRef.current || !requestFinished) {
+      return;
+    }
+
+    logoutRequestRef.current = false;
+    handleConfirmedLogout();
+  }, [handleConfirmedLogout, logoutResponse.data, logoutResponse.error]);
 
   const handleLogout = useCallback(() => {
     Alert.alert('Logout', 'Are you sure you want to logout?', [
@@ -50,11 +68,13 @@ export const useSettings = () => {
         text: 'Yes',
         style: 'destructive',
         onPress: () => {
-          handleConfirmedLogout();
+          logoutRequestRef.current = true;
+          dispatch(clearLogoutResponse());
+          dispatch(logout());
         },
       },
     ]);
-  }, [handleConfirmedLogout]);
+  }, [dispatch]);
 
   const options = useMemo(
     () => [

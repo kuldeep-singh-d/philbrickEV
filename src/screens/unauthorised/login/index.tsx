@@ -27,15 +27,12 @@ export const Login = () => {
           <AppInput
             title="Email"
             gradientBorder
-            value={states.email}
+            value={states.identifier}
             returnKeyType="next"
-            autoComplete="email"
-            error={states.emailError}
-            keyboardType="email-address"
-            textContentType="emailAddress"
-            placeholder="example@gmail.com"
-            onChangeText={handlers.setEmail}
-            setError={handlers.setEmailError}
+            error={states.identifierError}
+            placeholder="Enter your email"
+            onChangeText={handlers.setIdentifier}
+            setError={handlers.setIdentifierError}
             leftIcon={
               <Svgs.Mail
                 width={constants.iconSize}
@@ -66,7 +63,7 @@ export const Login = () => {
           />
 
           <AppButton
-            title="Sign up"
+            title="Login"
             loader={states.loading}
             disabled={states.loading}
             style={styles.loginButton}

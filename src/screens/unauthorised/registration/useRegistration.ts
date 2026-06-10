@@ -5,31 +5,32 @@ import helpers, { show } from '@utils/helpers';
 import useStyles from './styles';
 import { useDispatch, useSelector } from '@hooks';
 import { register } from '@store/slices/auth/register';
-
-const LOCAL_OTP = '123456';
-
-const requestEmailOtp = async (_email: string) => {
-  return { otp: LOCAL_OTP };
-};
-
-const verifyEmailOtp = async (otp: string) => {
-  return otp === LOCAL_OTP;
-};
+import { setLoginState } from '@store/slices/localStates/loginState';
+import { getApiFieldError } from '@utils/apiError';
+import { getMobileDeviceDescriptor } from '@utils/mobileDevice';
+import {
+  clearRegistrationOtpRes,
+  resendRegistrationOtp,
+  sendRegistrationOtp,
+} from '@store/slices/auth/registrationOtp';
 
 export const useRegistration = () => {
   const styles = useStyles();
   const dispatch = useDispatch();
   const navigation: any = useNavigation();
   const registerRequestRef = useRef(false);
+  const otpRequestRef = useRef(false);
 
-  const [name, setName] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
   const [mobileNumber, setMobileNumber] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  const [nameError, setNameError] = useState('');
+  const [fullNameError, setFullNameError] = useState('');
+  const [usernameError, setUsernameError] = useState('');
   const [emailError, setEmailError] = useState('');
   const [otpError, setOtpError] = useState('');
   const [mobileNumberError, setMobileNumberError] = useState('');
@@ -37,15 +38,18 @@ export const useRegistration = () => {
   const [confirmPasswordError, setConfirmPasswordError] = useState('');
 
   const [otpSent, setOtpSent] = useState(false);
-  const [emailVerified, setEmailVerified] = useState(false);
+  const [preparingDevice, setPreparingDevice] = useState(false);
   const registerResponse = useSelector(state => state.register);
+  const registrationOtpResponse = useSelector(state => state.registrationOtp);
 
   const normalizedEmail = email.trim().toLowerCase();
-  const normalizedUsername = name.trim();
+  const normalizedFullName = fullName.trim();
+  const normalizedUsername = username.trim();
   const canVerifyEmail = useMemo(
-    () => helpers.isValidEmail(normalizedEmail) && !emailVerified,
-    [emailVerified, normalizedEmail],
+    () => helpers.isValidEmail(normalizedEmail),
+    [normalizedEmail],
   );
+  const otpReady = /^\d{6}$/.test(otp.trim());
 
   const normalizedPhone = useMemo(() => {
     const digits = mobileNumber.replace(/\D/g, '');
@@ -63,57 +67,115 @@ export const useRegistration = () => {
     }
 
     registerRequestRef.current = false;
-    show.success('Registration successful');
-
-    navigation.navigate(routes.auth.login);
-  }, [navigation, registerResponse.data]);
+    show.success(
+      registerResponse.data?.message || 'Registration successful.',
+    );
+    dispatch(setLoginState(true));
+  }, [dispatch, registerResponse.data]);
 
   const handleEmailChange = useCallback((value: string) => {
     setEmail(value);
-    setEmailVerified(false);
     setOtpSent(false);
     setOtp('');
     setOtpError('');
   }, []);
 
-  const handleSendOtp = useCallback(async () => {
-    if (!canVerifyEmail) {
+  useEffect(() => {
+    if (!otpRequestRef.current || !registrationOtpResponse.data) {
       return;
     }
 
-    const result = await requestEmailOtp(normalizedEmail);
+    otpRequestRef.current = false;
     setOtpSent(true);
     setOtp('');
     setOtpError('');
-    show.success(`OTP sent to ${normalizedEmail}. Use ${result.otp} for now.`);
-  }, [canVerifyEmail, normalizedEmail]);
+    show.success(registrationOtpResponse.data?.message || 'OTP sent.');
+  }, [registrationOtpResponse.data]);
 
-  const handleVerifyOtp = useCallback(async () => {
-    if (!otp.trim()) {
-      setOtpError('OTP is required');
+  useEffect(() => {
+    if (!registrationOtpResponse.error) {
       return;
     }
 
-    const verified = await verifyEmailOtp(otp.trim());
-    if (!verified) {
-      setOtpError('Invalid OTP');
+    otpRequestRef.current = false;
+    setEmailError(getApiFieldError(registrationOtpResponse.error, 'email'));
+  }, [registrationOtpResponse.error]);
+
+  useEffect(() => {
+    if (!registerResponse.error) {
       return;
     }
 
-    setEmailVerified(true);
-    setOtpSent(false);
+    registerRequestRef.current = false;
+    setFullNameError(getApiFieldError(registerResponse.error, 'name'));
+    setUsernameError(getApiFieldError(registerResponse.error, 'username'));
+    setEmailError(getApiFieldError(registerResponse.error, 'email'));
+    setMobileNumberError(getApiFieldError(registerResponse.error, 'phone'));
+    setPasswordError(getApiFieldError(registerResponse.error, 'password'));
+    setOtpError(getApiFieldError(registerResponse.error, 'otp'));
+  }, [registerResponse.error]);
+
+  useEffect(
+    () => () => {
+      dispatch(clearRegistrationOtpRes());
+    },
+    [dispatch],
+  );
+
+  const handleSendOtp = useCallback(() => {
+    if (
+      !canVerifyEmail ||
+      registrationOtpResponse.loading ||
+      otpRequestRef.current
+    ) {
+      return;
+    }
+
+    otpRequestRef.current = true;
     setOtp('');
     setOtpError('');
-    show.success('Email verified successfully');
-  }, [otp]);
+    dispatch(clearRegistrationOtpRes());
+    dispatch(sendRegistrationOtp({ email: normalizedEmail }));
+  }, [
+    canVerifyEmail,
+    dispatch,
+    normalizedEmail,
+    registrationOtpResponse.loading,
+  ]);
 
-  const handleRegister = useCallback(() => {
+  const handleResendOtp = useCallback(() => {
+    if (
+      !canVerifyEmail ||
+      registrationOtpResponse.loading ||
+      otpRequestRef.current
+    ) {
+      return;
+    }
+
+    otpRequestRef.current = true;
+    setOtp('');
+    setOtpError('');
+    dispatch(clearRegistrationOtpRes());
+    dispatch(resendRegistrationOtp({ email: normalizedEmail }));
+  }, [
+    canVerifyEmail,
+    dispatch,
+    normalizedEmail,
+    registrationOtpResponse.loading,
+  ]);
+
+  const handleRegister = useCallback(async () => {
     let valid = true;
+    if (!normalizedFullName) {
+      setFullNameError('Full name is required');
+      valid = false;
+    }
+
     if (!normalizedUsername) {
-      setNameError('Username is required');
+      setUsernameError('Username is required');
       valid = false;
     } else if (!/^[A-Za-z0-9_-]{3,32}$/.test(normalizedUsername)) {
-      setNameError('Use 3-32 letters, numbers, dash, or underscore');
+      setUsernameError('Use 3-32 letters, numbers, dash, or underscore');
       valid = false;
     }
 
@@ -123,8 +185,13 @@ export const useRegistration = () => {
     } else if (!helpers.isValidEmail(normalizedEmail)) {
       setEmailError('Enter a valid email address');
       valid = false;
-    } else if (!emailVerified) {
-      setEmailError('Please verify your email');
+    } else if (!otpSent) {
+      setEmailError('Please request an OTP');
+      valid = false;
+    }
+
+    if (!otpReady) {
+      setOtpError('Enter the 6-digit OTP');
       valid = false;
     }
 
@@ -149,28 +216,42 @@ export const useRegistration = () => {
       valid = false;
     }
 
-    if (!valid) return;
+    if (!valid || registerResponse.loading || preparingDevice) return;
 
-    registerRequestRef.current = true;
-    dispatch(
-      register({
-        name: normalizedUsername,
-        username: normalizedUsername,
-        email: normalizedEmail,
-        phone: normalizedPhone,
-        password,
-        password_confirmation: confirmPassword,
-      }),
-    );
+    setPreparingDevice(true);
+
+    try {
+      const device = await getMobileDeviceDescriptor();
+      registerRequestRef.current = true;
+      dispatch(
+        register({
+          name: normalizedFullName,
+          username: normalizedUsername,
+          email: normalizedEmail,
+          phone: normalizedPhone,
+          password,
+          otp: otp.trim(),
+          device,
+          password_confirmation: confirmPassword,
+        }),
+      );
+    } finally {
+      setPreparingDevice(false);
+    }
   }, [
     dispatch,
+    normalizedFullName,
     normalizedUsername,
     normalizedEmail,
-    emailVerified,
+    otp,
+    otpReady,
+    otpSent,
     mobileNumber,
     normalizedPhone,
     password,
     confirmPassword,
+    preparingDevice,
+    registerResponse.loading,
   ]);
 
   const handleGoToLogin = useCallback(() => {
@@ -180,38 +261,45 @@ export const useRegistration = () => {
   return {
     styles,
     states: {
-      name,
+      fullName,
+      username,
       email,
       otp,
       otpSent,
-      emailVerified,
       mobileNumber,
       password,
       confirmPassword,
-      nameError,
+      fullNameError,
+      usernameError,
       emailError,
       otpError,
       mobileNumberError,
       passwordError,
       confirmPasswordError,
       canVerifyEmail,
-      loading: Boolean(registerResponse.loading),
+      otpReady,
+      otpLoading: Boolean(registrationOtpResponse.loading),
+      registrationLoading: Boolean(
+        registerResponse.loading || preparingDevice,
+      ),
     },
     handlers: {
-      setName,
+      setFullName,
+      setUsername,
       setEmail: handleEmailChange,
       setOtp,
       setMobileNumber,
       setPassword,
       setConfirmPassword,
-      setNameError,
+      setFullNameError,
+      setUsernameError,
       setEmailError,
       setOtpError,
       setMobileNumberError,
       setPasswordError,
       setConfirmPasswordError,
       handleSendOtp,
-      handleVerifyOtp,
+      handleResendOtp,
       handleRegister,
       handleGoToLogin,
     },
