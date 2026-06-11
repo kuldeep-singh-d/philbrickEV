@@ -1,5 +1,6 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { requestNotificationPermissionAndToken } from '../services/handleNotification';
 
 const INSTALLATION_ID_KEY = '@philbrickEV/installation-id';
 
@@ -9,6 +10,7 @@ export interface MobileDeviceDescriptor {
   platform: 'android' | 'ios';
   model?: string;
   os_version?: string;
+  fcm_token?: string | null;
 }
 
 const createInstallationId = () => {
@@ -53,11 +55,17 @@ export const getMobileDeviceDescriptor =
         ? modelValue.trim()
         : undefined;
 
+    const fcmToken = await requestNotificationPermissionAndToken().catch(
+      () => null,
+    );
+
     return {
       hash: await getInstallationId(),
-      name: model || (Platform.OS === 'android' ? 'Android device' : 'iOS device'),
+      name:
+        model || (Platform.OS === 'android' ? 'Android device' : 'iOS device'),
       platform: Platform.OS === 'android' ? 'android' : 'ios',
       ...(model ? { model } : {}),
       os_version: String(Platform.Version),
+      fcm_token: fcmToken,
     };
   };

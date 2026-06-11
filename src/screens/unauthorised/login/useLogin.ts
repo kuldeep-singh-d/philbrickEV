@@ -65,7 +65,6 @@ export const useLogin = () => {
 
     try {
       const device = await getMobileDeviceDescriptor();
-      console.log('\n ~ useLogin ~ device:', device);
       dispatch(login({ identifier: normalizedIdentifier, password, device }));
     } finally {
       setPreparingDevice(false);
