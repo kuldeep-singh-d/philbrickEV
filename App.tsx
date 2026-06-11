@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 
 import { Provider } from 'react-redux';
 import { persistStore } from 'redux-persist';
@@ -10,6 +10,7 @@ import {
 } from 'react-native-reanimated';
 import Navigation from 'src/navigations';
 import store from '@store/configureStore';
+import { initializeNotificationListeners } from './src/services/handleNotification';
 
 // This is the default configuration
 configureReanimatedLogger({
@@ -20,6 +21,8 @@ configureReanimatedLogger({
 const persistor = persistStore(store);
 
 const App = () => {
+  useEffect(() => initializeNotificationListeners(), []);
+
   return (
     <Provider store={store}>
       <PersistGate loading={null} persistor={persistor}>

@@ -17,6 +17,12 @@ end
 target 'philbrickEV' do
   config = use_native_modules!
 
+  # Firebase's Swift pods need module maps when CocoaPods links static libraries.
+  pod 'FirebaseCore', :modular_headers => true
+  pod 'FirebaseCoreInternal', :modular_headers => true
+  pod 'FirebaseInstallations', :modular_headers => true
+  pod 'GoogleUtilities', :modular_headers => true
+
   use_react_native!(
     :path => config[:reactNativePath],
     # An absolute path to your application root.

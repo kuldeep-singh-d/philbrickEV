@@ -9,12 +9,16 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 //local imports
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useSelector } from '@hooks';
 import { colors } from '@assets/colors';
 import { Authorised } from './authorised';
 import { ToastMessage } from '@components';
 import { Unauthorised } from './unauthorised';
+import {
+  flushNotificationNavigation,
+  navigationRef,
+} from './notificationNavigation';
 
 const lightTheme: Theme = {
   ...DefaultTheme,
@@ -37,12 +41,18 @@ const Navigation = () => {
     return isDark ? darkTheme : lightTheme;
   }, [currentTheme]);
 
+  useEffect(() => {
+    flushNotificationNavigation();
+  }, [status]);
+
   return (
     <SafeAreaProvider>
       <NavigationContainer
+        ref={navigationRef}
         theme={theme}
         onReady={() => {
           BootSplash.hide({ fade: true });
+          flushNotificationNavigation();
         }}
       >
         <GestureHandlerRootView style={styles.root}>

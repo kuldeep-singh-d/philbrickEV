@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "112509391265",
+    "project_id": "philbrickve",
+    "storage_bucket": "philbrickve.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:112509391265:android:3f8c488e696bce49383be0",
+        "android_client_info": {
+          "package_name": "com.philbrickev"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAmZQeuxVMh0Xn-p_Pl0wxji8jMsMG6tBQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

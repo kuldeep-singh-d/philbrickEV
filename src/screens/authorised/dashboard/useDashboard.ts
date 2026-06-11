@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useDeviceDimensions, useMqtt, useSelector } from '@hooks';
 import { selectDeviceMqttTopic } from '@store/slices/devices/devices';
+import { requestNotificationPermissionAndToken } from '../../../services/handleNotification';
 import useStyles from './styles';
 
 const START_TEST_PAYLOAD = JSON.stringify({ Start: 1 });
@@ -29,6 +30,10 @@ export const useDashboard = () => {
 
   const isChargingRef = useRef(isCharging);
   const startSwipeRef = useRef(0);
+
+  useEffect(() => {
+    requestNotificationPermissionAndToken();
+  }, []);
 
   useEffect(() => {
     isChargingRef.current = isCharging;
