@@ -6,6 +6,7 @@ import { apiRoutes, methods } from '@store/apiRoutes';
 export interface Device {
   id?: number | string;
   device_id?: string;
+  deviceId?: string;
   name?: string;
   location?: string;
   created_at?: string;
@@ -68,4 +69,10 @@ export const selectDevices = (response: any): Device[] => {
   ];
 
   return candidates.find(Array.isArray) || [];
+};
+
+export const selectDeviceMqttTopic = (device?: Device | null) => {
+  const topic = device?.device_id ?? device?.deviceId;
+
+  return typeof topic === 'string' ? topic.trim() : '';
 };

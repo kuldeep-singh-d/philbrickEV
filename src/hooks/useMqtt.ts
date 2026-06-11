@@ -8,6 +8,7 @@ import {
   startMqttConnection,
   stopMqttConnection,
   subscribeMqttTopic,
+  unsubscribeMqttTopic,
   type MqttMessage,
 } from '../mqtt/mqttClient';
 
@@ -22,6 +23,7 @@ export type MqttConnectionStatus =
 type MqttConnectionResult = Awaited<ReturnType<typeof startMqttConnection>>;
 type MqttDisconnectResult = Awaited<ReturnType<typeof stopMqttConnection>>;
 type MqttSubscribeResult = Awaited<ReturnType<typeof subscribeMqttTopic>>;
+type MqttUnsubscribeResult = Awaited<ReturnType<typeof unsubscribeMqttTopic>>;
 type MqttPublishResult = Awaited<ReturnType<typeof publishMqttMessage>>;
 
 export interface UseMqttOptions {
@@ -33,7 +35,6 @@ export interface UseMqttOptions {
   onMessage?: (message: MqttMessage) => void;
 }
 
-const DEFAULT_TOPIC = 'ev/#';
 const LOG_PREFIX = '[MQTT hook]';
 
 const logMqtt = (label: string, payload?: unknown) => {
@@ -59,7 +60,7 @@ const getErrorMessage = (error: unknown) => {
 
 export const useMqtt = ({
   config = mqttConfig,
-  defaultTopic = DEFAULT_TOPIC,
+  defaultTopic,
   autoConnect = false,
   autoSubscribeTopic,
   disconnectOnUnmount = false,
@@ -149,12 +150,18 @@ export const useMqtt = ({
   }, []);
 
   const subscribe = useCallback(
-    async (topic: string = defaultTopic): Promise<MqttSubscribeResult> => {
-      logMqtt('subscribe requested', { topic });
+    async (topic?: string): Promise<MqttSubscribeResult> => {
+      const nextTopic = topic || defaultTopic;
+
+      if (!nextTopic) {
+        throw new Error('MQTT subscribe topic is required');
+      }
+
+      logMqtt('subscribe requested', { topic: nextTopic });
       setError('');
 
       try {
-        const result = await subscribeMqttTopic(topic);
+        const result = await subscribeMqttTopic(nextTopic);
 
         if (mountedRef.current) {
           setSubscribedTopic(result.topic);
@@ -175,11 +182,41 @@ export const useMqtt = ({
     [defaultTopic],
   );
 
+  const unsubscribe = useCallback(
+    async (topic?: string): Promise<MqttUnsubscribeResult> => {
+      const nextTopic = topic || subscribedTopic;
+
+      if (!nextTopic) {
+        throw new Error('MQTT unsubscribe topic is required');
+      }
+
+      logMqtt('unsubscribe requested', { topic: nextTopic });
+      setError('');
+
+      try {
+        const result = await unsubscribeMqttTopic(nextTopic);
+
+        if (mountedRef.current && result.unsubscribed) {
+          setSubscribedTopic('');
+          logMqtt('subscribed topic cleared');
+        }
+
+        logMqtt('unsubscribe result', result);
+        return result;
+      } catch (unsubscribeError) {
+        if (mountedRef.current) {
+          setError(getErrorMessage(unsubscribeError));
+        }
+
+        logMqtt('unsubscribe failed', unsubscribeError);
+        throw unsubscribeError;
+      }
+    },
+    [subscribedTopic],
+  );
+
   const publish = useCallback(
-    async (
-      topic?: string,
-      message?: string,
-    ): Promise<MqttPublishResult> => {
+    async (topic?: string, message?: string): Promise<MqttPublishResult> => {
       logMqtt('publish requested', { topic, message });
       setError('');
 
@@ -278,6 +315,7 @@ export const useMqtt = ({
     connect,
     disconnect,
     subscribe,
+    unsubscribe,
     publish,
   };
 };

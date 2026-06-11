@@ -27,6 +27,89 @@ export const useStyles = () => {
       width: moderateWidth(46),
       height: moderateHeight(7.5),
     },
+    mqttTestCard: {
+      marginTop: moderateHeight(3),
+      marginHorizontal: moderateWidth(5),
+      padding: moderateWidth(4),
+      borderRadius: moderateWidth(4),
+      backgroundColor: '#FFFFFF',
+      shadowColor: '#000000',
+      shadowOpacity: 0.08,
+      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 5 },
+      elevation: 4,
+    },
+    testTitle: {
+      color: '#102348',
+      fontSize: moderateHeight(2.2),
+      marginBottom: moderateHeight(1.5),
+    },
+    testRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: moderateHeight(1),
+    },
+    testLabel: {
+      color: '#6B7280',
+      fontSize: moderateHeight(1.6),
+    },
+    testValue: {
+      flexShrink: 1,
+      marginLeft: moderateWidth(3),
+      color: '#111827',
+      fontSize: moderateHeight(1.6),
+      textAlign: 'right',
+    },
+    connectionStatus: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    statusDot: {
+      width: moderateWidth(2.2),
+      height: moderateWidth(2.2),
+      borderRadius: moderateWidth(1.1),
+    },
+    statusDotConnected: {
+      backgroundColor: '#3AC34B',
+    },
+    statusDotDisconnected: {
+      backgroundColor: '#F59E0B',
+    },
+    receivedBox: {
+      marginTop: moderateHeight(0.7),
+      padding: moderateWidth(3),
+      borderRadius: moderateWidth(2.5),
+      backgroundColor: '#F2FBF5',
+    },
+    receivedTitle: {
+      color: '#102348',
+      fontSize: moderateHeight(1.7),
+      marginBottom: moderateHeight(0.7),
+    },
+    receivedMeta: {
+      color: '#6B7280',
+      fontSize: moderateHeight(1.4),
+      marginBottom: moderateHeight(0.5),
+    },
+    receivedMessage: {
+      color: '#111827',
+      fontSize: moderateHeight(1.5),
+      lineHeight: moderateHeight(2),
+    },
+    testButton: {
+      height: moderateHeight(5.5),
+      marginTop: moderateHeight(1.5),
+    },
+    testFeedback: {
+      marginTop: moderateHeight(1),
+      color: '#15803D',
+      fontSize: moderateHeight(1.4),
+      textAlign: 'center',
+    },
+    testFeedbackError: {
+      color: '#DC2626',
+    },
     cardContainer: {
       flex: 1,
       marginTop: moderateHeight(2.5),

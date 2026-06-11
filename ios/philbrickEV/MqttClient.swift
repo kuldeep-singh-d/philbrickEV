@@ -165,6 +165,35 @@ class MqttClient: RCTEventEmitter {
     }
   }
 
+  @objc(unsubscribe:resolver:rejecter:)
+  func unsubscribe(
+    options: NSDictionary,
+    resolver resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock
+  ) {
+    queue.async {
+      do {
+        guard let output = self.outputStream else {
+          throw MqttError.connection("MQTT is not connected")
+        }
+        guard let topic = options["topic"] as? String, !topic.isEmpty else {
+          throw MqttError.missingOption("unsubscribe topic")
+        }
+
+        let packetIdentifier = self.takeNextPacketIdentifier()
+        let unsubscribePacket = self.buildUnsubscribePacket(
+          packetIdentifier: packetIdentifier,
+          topic: topic
+        )
+        try self.write(unsubscribePacket, to: output)
+        self.log("MQTT UNSUBSCRIBE packet sent topic=\(topic) packetId=\(packetIdentifier)")
+        resolve(["unsubscribed": true, "topic": topic])
+      } catch {
+        reject("MQTT_UNSUBSCRIBE_FAILED", error.localizedDescription, error)
+      }
+    }
+  }
+
   private func loadIdentity(
     certificateName: String,
     certificatePassword: String
@@ -347,6 +376,18 @@ class MqttClient: RCTEventEmitter {
     return [0x82] + encodeRemainingLength(remainingLength) + variableHeader + payload
   }
 
+  private func buildUnsubscribePacket(packetIdentifier: Int, topic: String) -> [UInt8] {
+    let variableHeader = [
+      UInt8((packetIdentifier >> 8) & 0xFF),
+      UInt8(packetIdentifier & 0xFF),
+    ]
+    var payload: [UInt8] = []
+    payload.appendMqttString(topic)
+
+    let remainingLength = variableHeader.count + payload.count
+    return [0xA2] + encodeRemainingLength(remainingLength) + variableHeader + payload
+  }
+
   private func startReadLoop(input: InputStream) {
     guard !isReading else {
       return
@@ -365,6 +406,8 @@ class MqttClient: RCTEventEmitter {
             try self.handlePublishPacket(fixedHeader: fixedHeader, packet: packet)
           case 0x90:
             self.log("MQTT SUBACK received")
+          case 0xB0:
+            self.log("MQTT UNSUBACK received")
           default:
             self.log("MQTT packet ignored type=\(fixedHeader & 0xF0)")
           }

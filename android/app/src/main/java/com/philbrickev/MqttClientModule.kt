@@ -198,6 +198,37 @@ class MqttClientModule(private val reactContext: ReactApplicationContext) :
   }
 
   @ReactMethod
+  fun unsubscribe(options: ReadableMap, promise: Promise) {
+    executor.execute {
+      try {
+        log("unsubscribe called")
+        val activeSocket = socket ?: error("MQTT is not connected")
+        val topic = options.getString("topic")?.takeUnless { it.isBlank() }
+          ?: error("Missing MQTT unsubscribe topic")
+        val packetIdentifier = nextPacketIdentifier()
+        val unsubscribePacket = buildUnsubscribePacket(
+          packetIdentifier = packetIdentifier,
+          topic = topic,
+        )
+
+        activeSocket.outputStream.write(unsubscribePacket)
+        activeSocket.outputStream.flush()
+        log("MQTT UNSUBSCRIBE packet sent topic=$topic packetId=$packetIdentifier")
+
+        promise.resolve(
+          Arguments.createMap().apply {
+            putBoolean("unsubscribed", true)
+            putString("topic", topic)
+          },
+        )
+      } catch (error: Throwable) {
+        log("MQTT unsubscribe failed: ${error.javaClass.simpleName}: ${error.message}")
+        promise.reject("MQTT_UNSUBSCRIBE_FAILED", error.message, error)
+      }
+    }
+  }
+
+  @ReactMethod
   fun addListener(eventName: String) = Unit
 
   @ReactMethod
@@ -390,6 +421,23 @@ class MqttClientModule(private val reactContext: ReactApplicationContext) :
     return packet.toByteArray()
   }
 
+  private fun buildUnsubscribePacket(packetIdentifier: Int, topic: String): ByteArray {
+    val variableHeader = ByteArrayOutputStream()
+    variableHeader.write((packetIdentifier shr 8) and 0xFF)
+    variableHeader.write(packetIdentifier and 0xFF)
+
+    val payload = ByteArrayOutputStream()
+    payload.writeMqttString(topic)
+
+    val remainingLength = variableHeader.size() + payload.size()
+    val packet = ByteArrayOutputStream()
+    packet.write(0xA2)
+    packet.write(encodeRemainingLength(remainingLength))
+    packet.write(variableHeader.toByteArray())
+    packet.write(payload.toByteArray())
+    return packet.toByteArray()
+  }
+
   private fun startReadLoop(activeSocket: SSLSocket) {
     if (isReading) {
       return
@@ -409,6 +457,7 @@ class MqttClientModule(private val reactContext: ReactApplicationContext) :
           when (fixedHeader and 0xF0) {
             0x30 -> handlePublishPacket(fixedHeader, packet)
             0x90 -> log("MQTT SUBACK received")
+            0xB0 -> log("MQTT UNSUBACK received")
             else -> log("MQTT packet ignored type=${fixedHeader and 0xF0}")
           }
         } catch (_: SocketTimeoutException) {

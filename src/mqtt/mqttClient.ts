@@ -23,12 +23,22 @@ type NativeMqttClient = {
   subscribe?(options: {
     topic: string;
   }): Promise<{ subscribed: boolean; topic: string }>;
+  unsubscribe?(options: {
+    topic: string;
+  }): Promise<{ unsubscribed: boolean; topic: string }>;
 };
 
 const MQTT_MESSAGE_EVENT = 'MqttMessageReceived';
 
 let connectPromise: Promise<{ connected: boolean; clientId?: string }> | null =
   null;
+let disconnectPromise: Promise<
+  { connected: boolean } | { connected: false; skipped: true }
+> | null = null;
+let activeConnection: { connected: boolean; clientId?: string } | undefined;
+let activeConnectionKey = '';
+let activeSubscribedTopic = '';
+let subscriptionQueue: Promise<void> = Promise.resolve();
 
 function getNativeMqttClient(): NativeMqttClient | undefined {
   //// console.log('[MQTT] Reading NativeModules.MqttClient');
@@ -53,6 +63,38 @@ function createMqttClientId() {
   return `${Platform.OS}_${timestamp}`;
 }
 
+function getConnectionKey(config: MqttConfig) {
+  return JSON.stringify({
+    enabled: config.enabled,
+    host: config.host,
+    port: config.port,
+    cleanSession: config.cleanSession,
+    keepAliveSeconds: config.keepAliveSeconds,
+    username: config.username,
+    password: config.password,
+    certificate: config.certificate,
+  });
+}
+
+function enqueueSubscription<T>(operation: () => Promise<T>): Promise<T> {
+  const result = subscriptionQueue.then(operation, operation);
+  subscriptionQueue = result.then(
+    () => undefined,
+    () => undefined,
+  );
+  return result;
+}
+
+function requireTopic(topic: string, action: string) {
+  const normalizedTopic = topic.trim();
+
+  if (!normalizedTopic) {
+    throw new Error(`MQTT ${action} topic is required`);
+  }
+
+  return normalizedTopic;
+}
+
 export function startMqttConnection(
   config: MqttConfig = mqttConfig,
 ): Promise<
@@ -67,6 +109,10 @@ export function startMqttConnection(
     return Promise.resolve({ connected: false, skipped: true });
   }
 
+  if (disconnectPromise) {
+    return disconnectPromise.then(() => startMqttConnection(config));
+  }
+
   //// console.log('[MQTT] Getting native MQTT client');
   const mqttClient = getNativeMqttClient();
   //console.log('[MQTT] Native MQTT client found', Boolean(mqttClient));
@@ -76,6 +122,12 @@ export function startMqttConnection(
     return Promise.reject(
       new Error(`MQTT native module is not available on ${Platform.OS}`),
     );
+  }
+
+  const connectionKey = getConnectionKey(config);
+
+  if (activeConnection?.connected && activeConnectionKey === connectionKey) {
+    return Promise.resolve(activeConnection);
   }
 
   if (!connectPromise) {
@@ -90,12 +142,18 @@ export function startMqttConnection(
       .then(result => {
         //console.log('[MQTT] Native connect resolved', result);
         connectPromise = null;
+        activeConnection = result.connected ? result : undefined;
+        activeConnectionKey = result.connected ? connectionKey : '';
+        activeSubscribedTopic = '';
         return result;
       })
       .catch(error => {
         console.warn('[MQTT] Native connect failed', error);
         //console.log('[MQTT] Clearing connect promise after failure');
         connectPromise = null;
+        activeConnection = undefined;
+        activeConnectionKey = '';
+        activeSubscribedTopic = '';
         throw error;
       });
   } else {
@@ -109,27 +167,46 @@ export function startMqttConnection(
 export function stopMqttConnection(): Promise<
   { connected: boolean } | { connected: false; skipped: true }
 > {
-  //console.log('[MQTT] stopMqttConnection called');
-  //console.log('[MQTT] Clearing connect promise before disconnect');
-  connectPromise = null;
-
-  //console.log('[MQTT] Getting native MQTT client for disconnect');
-  const mqttClient = getNativeMqttClient();
-  console.log(
-    '[MQTT] Native MQTT client found for disconnect',
-    Boolean(mqttClient),
-  );
-
-  if (!mqttClient) {
-    //console.log('[MQTT] Disconnect skipped because native module is missing');
-    return Promise.resolve({ connected: false, skipped: true });
+  if (disconnectPromise) {
+    return disconnectPromise;
   }
 
-  //console.log('[MQTT] Calling native disconnect');
-  return mqttClient.disconnect().then(result => {
-    //console.log('[MQTT] Native disconnect resolved', result);
-    return result;
+  //console.log('[MQTT] stopMqttConnection called');
+  const pendingConnection = connectPromise;
+  const operation = enqueueSubscription(async () => {
+    if (pendingConnection) {
+      await pendingConnection.catch(() => undefined);
+    }
+
+    //console.log('[MQTT] Getting native MQTT client for disconnect');
+    const mqttClient = getNativeMqttClient();
+    console.log(
+      '[MQTT] Native MQTT client found for disconnect',
+      Boolean(mqttClient),
+    );
+
+    try {
+      if (!mqttClient) {
+        //console.log('[MQTT] Disconnect skipped because native module is missing');
+        return { connected: false as const, skipped: true as const };
+      }
+
+      //console.log('[MQTT] Calling native disconnect');
+      const result = await mqttClient.disconnect();
+      //console.log('[MQTT] Native disconnect resolved', result);
+      return result;
+    } finally {
+      connectPromise = null;
+      activeConnection = undefined;
+      activeConnectionKey = '';
+      activeSubscribedTopic = '';
+    }
   });
+
+  disconnectPromise = operation.finally(() => {
+    disconnectPromise = null;
+  });
+  return disconnectPromise;
 }
 
 export function publishMqttMessage(
@@ -163,32 +240,90 @@ export function publishMqttMessage(
 }
 
 export function subscribeMqttTopic(
-  topic: string = 'ev/#',
+  topic: string,
 ): Promise<{ subscribed: boolean; topic: string }> {
-  const mqttClient = getNativeMqttClient();
+  return enqueueSubscription(async () => {
+    const normalizedTopic = requireTopic(topic, 'subscribe');
+    const mqttClient = getNativeMqttClient();
 
-  if (!mqttClient) {
-    console.warn('[MQTT] Native MQTT module is not available', Platform.OS);
-    return Promise.reject(
-      new Error(`MQTT native module is not available on ${Platform.OS}`),
-    );
-  }
+    if (!mqttClient) {
+      console.warn('[MQTT] Native MQTT module is not available', Platform.OS);
+      throw new Error(`MQTT native module is not available on ${Platform.OS}`);
+    }
 
-  if (typeof mqttClient.subscribe !== 'function') {
-    console.warn(
-      '[MQTT] Native MQTT subscribe method is not available',
-      Platform.OS,
-      Object.keys(mqttClient),
-    );
-    return Promise.reject(
-      new Error(
+    if (typeof mqttClient.subscribe !== 'function') {
+      console.warn(
+        '[MQTT] Native MQTT subscribe method is not available',
+        Platform.OS,
+        Object.keys(mqttClient),
+      );
+      throw new Error(
         `MQTT native subscribe method is not available on ${Platform.OS}. Rebuild and reinstall the app.`,
-      ),
-    );
-  }
+      );
+    }
 
-  console.log(Platform.OS, 'MQTT subscribe request', { topic });
-  return mqttClient.subscribe({ topic });
+    if (activeSubscribedTopic === normalizedTopic) {
+      return { subscribed: true, topic: normalizedTopic };
+    }
+
+    if (activeSubscribedTopic) {
+      if (typeof mqttClient.unsubscribe !== 'function') {
+        throw new Error(
+          `MQTT native unsubscribe method is not available on ${Platform.OS}. Rebuild and reinstall the app.`,
+        );
+      }
+
+      const previousTopic = activeSubscribedTopic;
+      console.log(Platform.OS, 'MQTT unsubscribe request', {
+        topic: previousTopic,
+      });
+      await mqttClient.unsubscribe({ topic: previousTopic });
+      activeSubscribedTopic = '';
+    }
+
+    console.log(Platform.OS, 'MQTT subscribe request', {
+      topic: normalizedTopic,
+    });
+    const result = await mqttClient.subscribe({ topic: normalizedTopic });
+    activeSubscribedTopic = result.topic;
+    return result;
+  });
+}
+
+export function unsubscribeMqttTopic(
+  topic: string,
+): Promise<{ unsubscribed: boolean; topic: string }> {
+  return enqueueSubscription(async () => {
+    const normalizedTopic = requireTopic(topic, 'unsubscribe');
+    const mqttClient = getNativeMqttClient();
+
+    if (!mqttClient) {
+      console.warn('[MQTT] Native MQTT module is not available', Platform.OS);
+      throw new Error(`MQTT native module is not available on ${Platform.OS}`);
+    }
+
+    if (activeSubscribedTopic !== normalizedTopic) {
+      return { unsubscribed: false, topic: normalizedTopic };
+    }
+
+    if (typeof mqttClient.unsubscribe !== 'function') {
+      console.warn(
+        '[MQTT] Native MQTT unsubscribe method is not available',
+        Platform.OS,
+        Object.keys(mqttClient),
+      );
+      throw new Error(
+        `MQTT native unsubscribe method is not available on ${Platform.OS}. Rebuild and reinstall the app.`,
+      );
+    }
+
+    console.log(Platform.OS, 'MQTT unsubscribe request', {
+      topic: normalizedTopic,
+    });
+    const result = await mqttClient.unsubscribe({ topic: normalizedTopic });
+    activeSubscribedTopic = '';
+    return result;
+  });
 }
 
 export function addMqttMessageListener(

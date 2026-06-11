@@ -1,8 +1,7 @@
-import {
-  createDevice,
-} from '../src/store/slices/devices/createDevice';
+import { createDevice } from '../src/store/slices/devices/createDevice';
 import {
   fetchDevices,
+  selectDeviceMqttTopic,
   selectDevices,
 } from '../src/store/slices/devices/devices';
 import { forgotPassword } from '../src/store/slices/auth/forgotPassword';
@@ -43,6 +42,13 @@ describe('settings API actions', () => {
     expect(selectDevices({ data: { devices } })).toEqual(devices);
     expect(selectDevices({ data: { data: devices } })).toEqual(devices);
     expect(selectDevices(devices)).toEqual(devices);
+  });
+
+  it('uses the selected device ID as its MQTT topic', () => {
+    expect(selectDeviceMqttTopic({ device_id: ' DEV-001 ' })).toBe('DEV-001');
+    expect(selectDeviceMqttTopic({ deviceId: 'DEV-002' })).toBe('DEV-002');
+    expect(selectDeviceMqttTopic({ id: 123 })).toBe('');
+    expect(selectDeviceMqttTopic(null)).toBe('');
   });
 
   it('builds the complete password reset request chain', () => {

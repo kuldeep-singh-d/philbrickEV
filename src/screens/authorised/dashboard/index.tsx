@@ -9,10 +9,17 @@ import {
 
 import { Svgs } from '@assets/svgs';
 import { images } from '@assets/imgaes';
+import { AppButton, AppText } from '@components';
 import { useDashboard } from './useDashboard';
 
 export const Dashboard = () => {
-  const { styles, handleAlertsPress, handleSettingsPress } = useDashboard();
+  const {
+    styles,
+    handleAlertsPress,
+    handleSettingsPress,
+    handleSendStartTest,
+    mqttTest,
+  } = useDashboard();
 
   return (
     <ImageBackground source={images.dashboardBG} style={styles.container}>
@@ -33,6 +40,90 @@ export const Dashboard = () => {
         <Pressable style={styles.iconButton} onPress={handleSettingsPress}>
           <Svgs.Setting width={25} height={25} />
         </Pressable>
+      </View>
+
+      <View style={styles.mqttTestCard}>
+        <AppText
+          semibold
+          label="MQTT Connection Test"
+          style={styles.testTitle}
+        />
+
+        <View style={styles.testRow}>
+          <AppText label="Device" style={styles.testLabel} />
+          <AppText
+            medium
+            label={mqttTest.deviceName}
+            style={styles.testValue}
+          />
+        </View>
+
+        <View style={styles.testRow}>
+          <AppText label="Topic" style={styles.testLabel} />
+          <AppText
+            medium
+            label={mqttTest.deviceTopic}
+            style={styles.testValue}
+          />
+        </View>
+
+        <View style={styles.testRow}>
+          <AppText label="Connection" style={styles.testLabel} />
+          <View style={styles.connectionStatus}>
+            <View
+              style={[
+                styles.statusDot,
+                mqttTest.connectionStatus === 'connected'
+                  ? styles.statusDotConnected
+                  : styles.statusDotDisconnected,
+              ]}
+            />
+            <AppText
+              medium
+              label={mqttTest.connectionStatus}
+              style={styles.testValue}
+            />
+          </View>
+        </View>
+
+        <View style={styles.receivedBox}>
+          <AppText
+            semibold
+            label="Latest Received Data"
+            style={styles.receivedTitle}
+          />
+          <AppText
+            label={`Topic: ${mqttTest.latestMessage?.topic || 'Waiting...'}`}
+            style={styles.receivedMeta}
+          />
+          <AppText
+            selectable
+            numberOfLines={5}
+            label={mqttTest.latestMessage?.message || 'No data received yet.'}
+            style={styles.receivedMessage}
+          />
+        </View>
+
+        <AppButton
+          title={`Send ${mqttTest.payload}`}
+          loader={mqttTest.isPublishing}
+          disabled={!mqttTest.canPublish}
+          onPress={handleSendStartTest}
+          style={styles.testButton}
+        />
+
+        {mqttTest.publishResult || mqttTest.error ? (
+          <AppText
+            numberOfLines={3}
+            label={mqttTest.publishResult || mqttTest.error}
+            style={[
+              styles.testFeedback,
+              mqttTest.error && !mqttTest.publishResult
+                ? styles.testFeedbackError
+                : undefined,
+            ]}
+          />
+        ) : null}
       </View>
 
       {/* <View style={styles.cardContainer}>

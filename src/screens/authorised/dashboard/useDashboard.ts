@@ -3,21 +3,29 @@ import { useNavigation } from '@react-navigation/native';
 import { LayoutChangeEvent, PanResponder } from 'react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { useDeviceDimensions, useMqtt } from '@hooks';
+import { useDeviceDimensions, useMqtt, useSelector } from '@hooks';
+import { selectDeviceMqttTopic } from '@store/slices/devices/devices';
 import useStyles from './styles';
+
+const START_TEST_PAYLOAD = JSON.stringify({ Start: 1 });
 
 export const useDashboard = () => {
   const styles = useStyles();
   const navigation: any = useNavigation();
   const { moderateWidth } = useDeviceDimensions();
+  const selectedDevice = useSelector(state => state.selectedDevice.data);
+  const selectedDeviceTopic = selectDeviceMqttTopic(selectedDevice);
   const mqtt = useMqtt({
-    autoConnect: true,
-    autoSubscribeTopic: 'ev/#',
+    autoConnect: Boolean(selectedDeviceTopic),
+    autoSubscribeTopic: selectedDeviceTopic || undefined,
   });
+  const { publish } = mqtt;
 
   const [isCharging, setIsCharging] = useState(false);
   const [swipePosition, setSwipePosition] = useState(0);
   const [trackWidth, setTrackWidth] = useState(0);
+  const [isPublishingTest, setIsPublishingTest] = useState(false);
+  const [publishResult, setPublishResult] = useState('');
 
   const isChargingRef = useRef(isCharging);
   const startSwipeRef = useRef(0);
@@ -51,6 +59,26 @@ export const useDashboard = () => {
   const handleSettingsPress = useCallback(() => {
     navigation.navigate(routes.app.settings);
   }, [navigation]);
+
+  const handleSendStartTest = useCallback(async () => {
+    if (!selectedDeviceTopic || isPublishingTest) {
+      return;
+    }
+
+    setIsPublishingTest(true);
+    setPublishResult('');
+
+    try {
+      await publish(selectedDeviceTopic, START_TEST_PAYLOAD);
+      setPublishResult(`Sent ${START_TEST_PAYLOAD}`);
+    } catch (error) {
+      setPublishResult(
+        error instanceof Error ? error.message : 'Unable to publish test data.',
+      );
+    } finally {
+      setIsPublishingTest(false);
+    }
+  }, [isPublishingTest, publish, selectedDeviceTopic]);
 
   const panResponder = useMemo(
     () =>
@@ -102,8 +130,19 @@ export const useDashboard = () => {
     handleTrackLayout,
     handleAlertsPress,
     handleSettingsPress,
+    handleSendStartTest,
     swipeLabel,
-    mqtt,
+    mqttTest: {
+      deviceName: selectedDevice?.name || selectedDeviceTopic || 'No device',
+      deviceTopic: selectedDeviceTopic || 'Not available',
+      connectionStatus: mqtt.status,
+      latestMessage: mqtt.latestMessage,
+      error: mqtt.error,
+      isPublishing: isPublishingTest,
+      publishResult,
+      canPublish: Boolean(selectedDeviceTopic && mqtt.isConnected),
+      payload: START_TEST_PAYLOAD,
+    },
   };
 };
 
