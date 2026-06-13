@@ -1,27 +1,35 @@
 import {
   View,
   Image,
+  Pressable,
   StyleProp,
   ViewStyle,
   StatusBar,
   StyleSheet,
 } from 'react-native';
 import { images } from '@assets/imgaes';
+import { Svgs } from '@assets/svgs';
 import React, { ReactNode } from 'react';
 import { useDeviceDimensions } from '@hooks';
 import { KeyboardAvoider } from '@components';
+import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface AuthorisedScreenProps {
   children: ReactNode;
   contentStyle?: StyleProp<ViewStyle>;
+  showBackButton?: boolean;
+  roundedHeader?: boolean;
 }
 
 export const AuthorisedScreen = ({
   children,
   contentStyle,
+  showBackButton = false,
+  roundedHeader = false,
 }: AuthorisedScreenProps) => {
   const styles = useStyles();
+  const navigation = useNavigation();
 
   return (
     <View style={styles.container}>
@@ -30,7 +38,23 @@ export const AuthorisedScreen = ({
         barStyle="dark-content"
         showHideTransition={'fade'}
       />
-      <View style={styles.brandHeader}>
+      <View
+        style={[styles.brandHeader, roundedHeader && styles.roundedBrandHeader]}
+      >
+        {showBackButton ? (
+          <Pressable
+            hitSlop={8}
+            onPress={navigation.goBack}
+            style={styles.backButton}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
+            <Svgs.AlertBackArrow
+              width={styles.backIcon.width}
+              height={styles.backIcon.height}
+            />
+          </Pressable>
+        ) : null}
         <Image
           resizeMode="contain"
           source={images.headerLogo}
@@ -63,9 +87,35 @@ const useStyles = () => {
       paddingBottom: moderateHeight(0.5),
       paddingTop: insets.top + moderateHeight(-1),
     },
+    roundedBrandHeader: {
+      paddingTop: insets.top + moderateHeight(1),
+      paddingBottom: moderateHeight(5.2),
+      borderBottomLeftRadius: moderateWidth(13),
+      borderBottomRightRadius: moderateWidth(13),
+    },
     brandLogo: {
       width: moderateWidth(46),
       height: moderateHeight(7.5),
+    },
+    backButton: {
+      position: 'absolute',
+      zIndex: 1,
+      left: moderateWidth(6),
+      top: insets.top + moderateHeight(2.2),
+      width: moderateWidth(9),
+      height: moderateWidth(9),
+      maxWidth: 42,
+      maxHeight: 42,
+      borderWidth: 1,
+      borderColor: '#EEEEEE',
+      borderRadius: moderateWidth(3),
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: '#FFFFFF',
+    },
+    backIcon: {
+      width: moderateWidth(5.5),
+      height: moderateWidth(5.5),
     },
     contentContainer: {
       flexGrow: 1,

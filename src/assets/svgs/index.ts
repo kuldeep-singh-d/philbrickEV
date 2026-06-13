@@ -3,6 +3,7 @@ import Lock from './lock.svg';
 import User from './user.svg';
 import Mail from './email.svg';
 import Alert from './alert.svg';
+import AlertBackArrow from './alertBackArrow.svg';
 import Check from './check.svg';
 import Cross from './cross.svg';
 import Phone from './phone.svg';
@@ -26,6 +27,8 @@ import SessionStats from './sessionStats.svg';
 import ReportsActive from './reportsActive.svg';
 import SettingActive from './settingActive.svg';
 import ChargingStatus from './chargingStatus.svg';
+import ThreePhase from './threePhase.svg';
+import VoltageGauge from './voltageGauge.svg';
 
 export const Svgs = Object.freeze({
   Call,
@@ -33,6 +36,7 @@ export const Svgs = Object.freeze({
   Lock,
   User,
   Alert,
+  AlertBackArrow,
   Check,
   Cross,
   Phone,
@@ -56,4 +60,6 @@ export const Svgs = Object.freeze({
   SettingActive,
   Date: DateIcon,
   ChargingStatus,
+  ThreePhase,
+  VoltageGauge,
 });

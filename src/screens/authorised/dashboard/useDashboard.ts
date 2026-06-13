@@ -6,9 +6,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDeviceDimensions, useMqtt, useSelector } from '@hooks';
 import { selectDeviceMqttTopic } from '@store/slices/devices/devices';
 import { requestNotificationPermissionAndToken } from '../../../services/handleNotification';
+import { parseDashboardMessage } from './dashboardData';
 import useStyles from './styles';
 
 const START_TEST_PAYLOAD = JSON.stringify({ Start: 1 });
+const STOP_CHARGE_PAYLOAD = JSON.stringify({ Start: 0 });
 
 export const useDashboard = () => {
   const styles = useStyles();
@@ -21,6 +23,14 @@ export const useDashboard = () => {
     autoSubscribeTopic: selectedDeviceTopic || undefined,
   });
   const { publish } = mqtt;
+  const telemetry = useMemo(
+    () =>
+      parseDashboardMessage(
+        mqtt.latestMessage?.message,
+        selectedDevice as Record<string, unknown> | null,
+      ),
+    [mqtt.latestMessage?.message, selectedDevice],
+  );
 
   const [isCharging, setIsCharging] = useState(false);
   const [swipePosition, setSwipePosition] = useState(0);
@@ -38,6 +48,12 @@ export const useDashboard = () => {
   useEffect(() => {
     isChargingRef.current = isCharging;
   }, [isCharging]);
+
+  useEffect(() => {
+    if (telemetry.cpStatus !== undefined) {
+      setIsCharging(telemetry.cpStatus === 3);
+    }
+  }, [telemetry.cpStatus]);
 
   const handleWidth = moderateWidth(16);
 
@@ -85,6 +101,37 @@ export const useDashboard = () => {
     }
   }, [isPublishingTest, publish, selectedDeviceTopic]);
 
+  const handleChargeChange = useCallback(
+    async (nextCharging: boolean) => {
+      const previousCharging = isChargingRef.current;
+      const payload = nextCharging ? START_TEST_PAYLOAD : STOP_CHARGE_PAYLOAD;
+
+      setIsCharging(nextCharging);
+      setPublishResult('');
+
+      if (!selectedDeviceTopic || !mqtt.isConnected) {
+        return;
+      }
+
+      setIsPublishingTest(true);
+
+      try {
+        await publish(selectedDeviceTopic, payload);
+        setPublishResult(`Sent ${payload}`);
+      } catch (error) {
+        setIsCharging(previousCharging);
+        setPublishResult(
+          error instanceof Error
+            ? error.message
+            : 'Unable to update charging state.',
+        );
+      } finally {
+        setIsPublishingTest(false);
+      }
+    },
+    [mqtt.isConnected, publish, selectedDeviceTopic],
+  );
+
   const panResponder = useMemo(
     () =>
       PanResponder.create({
@@ -109,9 +156,9 @@ export const useDashboard = () => {
             isChargingRef.current && gestureState.dx <= -threshold;
 
           if (canStart) {
-            setIsCharging(true);
+            void handleChargeChange(true);
           } else if (canStop) {
-            setIsCharging(false);
+            void handleChargeChange(false);
           } else {
             setSwipePosition(isChargingRef.current ? maxSwipeDistance : 0);
           }
@@ -120,7 +167,7 @@ export const useDashboard = () => {
           setSwipePosition(isChargingRef.current ? maxSwipeDistance : 0);
         },
       }),
-    [maxSwipeDistance],
+    [handleChargeChange, maxSwipeDistance],
   );
 
   const swipeLabel = isCharging
@@ -137,6 +184,20 @@ export const useDashboard = () => {
     handleSettingsPress,
     handleSendStartTest,
     swipeLabel,
+    dashboard: {
+      telemetry,
+      isConnected: mqtt.isConnected,
+      connectionLabel: mqtt.isConnected ? 'Connected' : 'Disconnected',
+      current:
+        telemetry.setCurrent ??
+        Math.max(
+          telemetry.phases.R.current,
+          telemetry.phases.Y.current,
+          telemetry.phases.B.current,
+        ),
+      hasFault: telemetry.activeFaults.length > 0,
+      isPublishing: isPublishingTest,
+    },
     mqttTest: {
       deviceName: selectedDevice?.name || selectedDeviceTopic || 'No device',
       deviceTopic: selectedDeviceTopic || 'Not available',

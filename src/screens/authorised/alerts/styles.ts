@@ -1,5 +1,6 @@
 import { StyleSheet } from 'react-native';
 import { useDeviceDimensions } from '@hooks';
+import fonts from '@assets/fonts';
 
 export default () => {
   const { moderateWidth, moderateHeight } = useDeviceDimensions();
@@ -7,15 +8,40 @@ export default () => {
   return StyleSheet.create({
     content: {
       paddingHorizontal: moderateWidth(6),
+      paddingTop: moderateHeight(3.6),
     },
     heading: {
-      fontSize: moderateHeight(2),
-      marginBottom: moderateHeight(1),
+      color: '#000000',
+      fontSize: moderateHeight(2.5),
+      lineHeight: moderateHeight(3.4),
+      marginBottom: moderateHeight(2.8),
     },
-    message: {
-      marginTop: moderateHeight(1),
-      //   lineHeight: moderateHeight(3),
-      color: '#4A4A4A',
+    alertList: {
+      width: '100%',
+    },
+    alertCard: {
+      width: '100%',
+      minHeight: moderateHeight(6.2),
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderWidth: 2,
+      borderColor: '#FFB3B7',
+      borderRadius: moderateWidth(3),
+      backgroundColor: '#FFC9CC',
+      marginBottom: moderateHeight(1.2),
+      paddingHorizontal: moderateWidth(3),
+      paddingVertical: moderateHeight(0.7),
+    },
+    alertIcon: {
+      width: moderateWidth(10),
+      height: moderateHeight(4.4),
+    },
+    alertTitle: {
+      flex: 1,
+      color: '#FF363C',
+      fontFamily: fonts.regular,
+      fontSize: moderateHeight(2),
+      marginLeft: moderateWidth(3),
     },
   });
 };
