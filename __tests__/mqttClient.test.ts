@@ -4,7 +4,9 @@ import {
   startMqttConnection,
   stopMqttConnection,
   subscribeMqttTopic,
+  subscribeMqttTopics,
   unsubscribeMqttTopic,
+  unsubscribeMqttTopics,
 } from '../src/mqtt/mqttClient';
 import type { MqttConfig } from '../src/mqtt/mqttConfig';
 
@@ -173,6 +175,20 @@ describe('mqttClient', () => {
     });
   });
 
+  it('allows reconnect after a publish detects a dead connection', async () => {
+    nativeModules.MqttClient?.publish.mockRejectedValueOnce(
+      new Error('socket closed'),
+    );
+
+    await startMqttConnection(enabledConfig);
+    await expect(publishMqttMessage('command', 'start')).rejects.toThrow(
+      'socket closed',
+    );
+    await startMqttConnection(enabledConfig);
+
+    expect(nativeModules.MqttClient?.connect).toHaveBeenCalledTimes(2);
+  });
+
   it('subscribes to a selected device topic through the native bridge', async () => {
     await expect(subscribeMqttTopic('DEV-001')).resolves.toEqual({
       subscribed: true,
@@ -193,22 +209,35 @@ describe('mqttClient', () => {
     expect(nativeModules.MqttClient?.unsubscribe).not.toHaveBeenCalled();
   });
 
-  it('unsubscribes the previous device before subscribing to a new one', async () => {
+  it('keeps multiple distinct topic subscriptions active', async () => {
     await subscribeMqttTopic('DEV-001');
     await subscribeMqttTopic('DEV-002');
 
-    expect(nativeModules.MqttClient?.unsubscribe).toHaveBeenCalledTimes(1);
-    expect(nativeModules.MqttClient?.unsubscribe).toHaveBeenCalledWith({
-      topic: 'DEV-001',
-    });
+    expect(nativeModules.MqttClient?.unsubscribe).not.toHaveBeenCalled();
+    expect(nativeModules.MqttClient?.subscribe).toHaveBeenCalledTimes(2);
     expect(nativeModules.MqttClient?.subscribe).toHaveBeenNthCalledWith(2, {
       topic: 'DEV-002',
     });
-    expect(
-      nativeModules.MqttClient?.unsubscribe.mock.invocationCallOrder[0],
-    ).toBeLessThan(
-      nativeModules.MqttClient?.subscribe.mock.invocationCallOrder[1] || 0,
-    );
+  });
+
+  it('subscribes and unsubscribes a unique topic set', async () => {
+    await expect(
+      subscribeMqttTopics(['status', 'error', 'status']),
+    ).resolves.toEqual({
+      subscribed: true,
+      topics: ['status', 'error'],
+    });
+
+    expect(nativeModules.MqttClient?.subscribe).toHaveBeenCalledTimes(2);
+
+    await expect(
+      unsubscribeMqttTopics(['status', 'error', 'status']),
+    ).resolves.toEqual({
+      unsubscribed: true,
+      topics: ['status', 'error'],
+    });
+
+    expect(nativeModules.MqttClient?.unsubscribe).toHaveBeenCalledTimes(2);
   });
 
   it('unsubscribes the active device topic', async () => {

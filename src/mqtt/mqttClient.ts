@@ -37,8 +37,14 @@ let disconnectPromise: Promise<
 > | null = null;
 let activeConnection: { connected: boolean; clientId?: string } | undefined;
 let activeConnectionKey = '';
-let activeSubscribedTopic = '';
+const activeSubscribedTopics = new Set<string>();
 let subscriptionQueue: Promise<void> = Promise.resolve();
+
+function clearActiveConnectionState() {
+  activeConnection = undefined;
+  activeConnectionKey = '';
+  activeSubscribedTopics.clear();
+}
 
 function getNativeMqttClient(): NativeMqttClient | undefined {
   //// console.log('[MQTT] Reading NativeModules.MqttClient');
@@ -144,16 +150,14 @@ export function startMqttConnection(
         connectPromise = null;
         activeConnection = result.connected ? result : undefined;
         activeConnectionKey = result.connected ? connectionKey : '';
-        activeSubscribedTopic = '';
+        activeSubscribedTopics.clear();
         return result;
       })
       .catch(error => {
         console.warn('[MQTT] Native connect failed', error);
         //console.log('[MQTT] Clearing connect promise after failure');
         connectPromise = null;
-        activeConnection = undefined;
-        activeConnectionKey = '';
-        activeSubscribedTopic = '';
+        clearActiveConnectionState();
         throw error;
       });
   } else {
@@ -197,9 +201,7 @@ export function stopMqttConnection(): Promise<
       return result;
     } finally {
       connectPromise = null;
-      activeConnection = undefined;
-      activeConnectionKey = '';
-      activeSubscribedTopic = '';
+      clearActiveConnectionState();
     }
   });
 
@@ -236,7 +238,10 @@ export function publishMqttMessage(
   }
 
   console.log(Platform.OS, 'MQTT publish request', { topic, message });
-  return mqttClient.publish({ topic, message });
+  return mqttClient.publish({ topic, message }).catch(error => {
+    clearActiveConnectionState();
+    throw error;
+  });
 }
 
 export function subscribeMqttTopic(
@@ -262,32 +267,31 @@ export function subscribeMqttTopic(
       );
     }
 
-    if (activeSubscribedTopic === normalizedTopic) {
+    if (activeSubscribedTopics.has(normalizedTopic)) {
       return { subscribed: true, topic: normalizedTopic };
-    }
-
-    if (activeSubscribedTopic) {
-      if (typeof mqttClient.unsubscribe !== 'function') {
-        throw new Error(
-          `MQTT native unsubscribe method is not available on ${Platform.OS}. Rebuild and reinstall the app.`,
-        );
-      }
-
-      const previousTopic = activeSubscribedTopic;
-      console.log(Platform.OS, 'MQTT unsubscribe request', {
-        topic: previousTopic,
-      });
-      await mqttClient.unsubscribe({ topic: previousTopic });
-      activeSubscribedTopic = '';
     }
 
     console.log(Platform.OS, 'MQTT subscribe request', {
       topic: normalizedTopic,
     });
     const result = await mqttClient.subscribe({ topic: normalizedTopic });
-    activeSubscribedTopic = result.topic;
+    activeSubscribedTopics.add(result.topic);
     return result;
   });
+}
+
+export async function subscribeMqttTopics(
+  topics: readonly string[],
+): Promise<{ subscribed: boolean; topics: string[] }> {
+  const uniqueTopics = [
+    ...new Set(topics.map(topic => requireTopic(topic, 'subscribe'))),
+  ];
+
+  for (const topic of uniqueTopics) {
+    await subscribeMqttTopic(topic);
+  }
+
+  return { subscribed: true, topics: uniqueTopics };
 }
 
 export function unsubscribeMqttTopic(
@@ -302,7 +306,7 @@ export function unsubscribeMqttTopic(
       throw new Error(`MQTT native module is not available on ${Platform.OS}`);
     }
 
-    if (activeSubscribedTopic !== normalizedTopic) {
+    if (!activeSubscribedTopics.has(normalizedTopic)) {
       return { unsubscribed: false, topic: normalizedTopic };
     }
 
@@ -321,9 +325,23 @@ export function unsubscribeMqttTopic(
       topic: normalizedTopic,
     });
     const result = await mqttClient.unsubscribe({ topic: normalizedTopic });
-    activeSubscribedTopic = '';
+    activeSubscribedTopics.delete(normalizedTopic);
     return result;
   });
+}
+
+export async function unsubscribeMqttTopics(
+  topics: readonly string[],
+): Promise<{ unsubscribed: boolean; topics: string[] }> {
+  const uniqueTopics = [
+    ...new Set(topics.map(topic => requireTopic(topic, 'unsubscribe'))),
+  ];
+
+  for (const topic of uniqueTopics) {
+    await unsubscribeMqttTopic(topic);
+  }
+
+  return { unsubscribed: true, topics: uniqueTopics };
 }
 
 export function addMqttMessageListener(

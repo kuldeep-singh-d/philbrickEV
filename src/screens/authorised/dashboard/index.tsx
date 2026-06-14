@@ -4,11 +4,13 @@ import {
   Pressable,
   StatusBar,
   ScrollView,
+  StyleSheet,
   ImageBackground,
 } from 'react-native';
 import React from 'react';
+import { GestureDetector } from 'react-native-gesture-handler';
 import { Svgs } from '@assets/svgs';
-import { AppButton, AppText } from '@components';
+import { AppButton, AppText, Loader } from '@components';
 import { images } from '@assets/imgaes';
 import { useDashboard } from './useDashboard';
 import { formatMetric } from './dashboardData';
@@ -51,7 +53,7 @@ const PhaseRow = ({ phase, voltage, current, style }: PhaseRowProps) => (
 );
 
 const ChargeHandleBackground = () => (
-  <Svg width="100%" height="100%" style={{ position: 'absolute' }}>
+  <Svg width="100%" height="100%" style={StyleSheet.absoluteFill}>
     <Defs>
       <LinearGradient id="chargeHandle" x1="0" y1="0" x2="1" y2="1">
         <Stop offset="0" stopColor="#32C45A" />
@@ -67,12 +69,12 @@ export const Dashboard = () => {
     styles,
     dashboard,
     handleAlertsPress,
-    handleSendStartTest,
+    handleRetry,
     handleSettingsPress,
     handleTrackLayout,
     isCharging,
-    mqttTest,
-    panResponder,
+    isSwiping,
+    swipeGesture,
     swipePosition,
   } = useDashboard();
   const { telemetry } = dashboard;
@@ -91,6 +93,7 @@ export const Dashboard = () => {
 
       <ScrollView
         bounces={false}
+        scrollEnabled={!isSwiping}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
       >
@@ -149,6 +152,36 @@ export const Dashboard = () => {
             ]}
           />
         </View>
+
+        {dashboard.connectionError ? (
+          <View style={styles.connectionErrorCard}>
+            <AppText
+              medium
+              centered
+              label={dashboard.connectionError}
+              style={styles.connectionErrorText}
+            />
+            <AppButton
+              title="Retry"
+              onPress={handleRetry}
+              style={styles.retryButton}
+            />
+          </View>
+        ) : null}
+
+        {dashboard.chargerError ? (
+          <View style={styles.chargerErrorCard}>
+            <AppText
+              semibold
+              label="Charger alert"
+              style={styles.chargerErrorTitle}
+            />
+            <AppText
+              label={dashboard.chargerError}
+              style={styles.chargerErrorText}
+            />
+          </View>
+        ) : null}
 
         <View style={[styles.card, styles.statusCard]}>
           <Svgs.ChargingStatus width={36} height={36} />
@@ -235,8 +268,14 @@ export const Dashboard = () => {
           />
         </View>
 
-        <View style={styles.swipeContainer} onLayout={handleTrackLayout}>
+        <View
+          style={[
+            styles.swipeContainer,
+            !dashboard.canControl && styles.controlDisabled,
+          ]}
+        >
           <View
+            onLayout={handleTrackLayout}
             style={[styles.swipeTrack, isCharging && styles.swipeTrackCharging]}
           >
             <View
@@ -283,111 +322,41 @@ export const Dashboard = () => {
               ) : null}
             </View>
 
-            <View
-              accessibilityLabel={
-                isCharging
-                  ? 'Swipe left to stop charging'
-                  : 'Swipe right to start charging'
-              }
-              accessibilityRole="adjustable"
-              style={[
-                styles.swipeHandle,
-                isCharging && styles.swipeHandleCharging,
-                { left: swipePosition },
-              ]}
-              {...panResponder.panHandlers}
-            >
-              {!isCharging ? <ChargeHandleBackground /> : null}
-              <Svgs.Charging width={31} height={38} />
-            </View>
-          </View>
-        </View>
-
-        {/* mqttTestCard */}
-        <View style={styles.mqttTestCard}>
-          <AppText
-            semibold
-            label="MQTT Connection Test"
-            style={styles.testTitle}
-          />
-
-          <View style={styles.testRow}>
-            <AppText label="Device" style={styles.testLabel} />
-            <AppText
-              medium
-              label={mqttTest.deviceName}
-              style={styles.testValue}
-            />
-          </View>
-
-          <View style={styles.testRow}>
-            <AppText label="Topic" style={styles.testLabel} />
-            <AppText
-              medium
-              label={mqttTest.deviceTopic}
-              style={styles.testValue}
-            />
-          </View>
-
-          <View style={styles.testRow}>
-            <AppText label="Connection" style={styles.testLabel} />
-            <View style={styles.connectionStatus}>
+            <GestureDetector gesture={swipeGesture}>
               <View
+                collapsable={false}
+                accessibilityLabel={
+                  isCharging
+                    ? 'Swipe left to stop charging'
+                    : 'Swipe right to start charging'
+                }
+                accessibilityRole="adjustable"
                 style={[
-                  styles.statusDot,
-                  mqttTest.connectionStatus === 'connected'
-                    ? styles.statusDotConnected
-                    : styles.statusDotDisconnected,
+                  styles.swipeHandle,
+                  isCharging && styles.swipeHandleCharging,
+                  { transform: [{ translateX: swipePosition }] },
                 ]}
-              />
-              <AppText
-                medium
-                label={mqttTest.connectionStatus}
-                style={styles.testValue}
-              />
-            </View>
+              >
+                {!isCharging ? <ChargeHandleBackground /> : null}
+                <Svgs.Charging width={31} height={38} />
+              </View>
+            </GestureDetector>
           </View>
-
-          <View style={styles.receivedBox}>
-            <AppText
-              semibold
-              label="Latest Received Data"
-              style={styles.receivedTitle}
-            />
-            <AppText
-              label={`Topic: ${mqttTest.latestMessage?.topic || 'Waiting...'}`}
-              style={styles.receivedMeta}
-            />
-            <AppText
-              selectable
-              numberOfLines={5}
-              label={mqttTest.latestMessage?.message || 'No data received yet.'}
-              style={styles.receivedMessage}
-            />
-          </View>
-
-          <AppButton
-            title={`Send ${mqttTest.payload}`}
-            loader={mqttTest.isPublishing}
-            disabled={!mqttTest.canPublish}
-            onPress={handleSendStartTest}
-            style={styles.testButton}
-          />
-
-          {mqttTest.publishResult || mqttTest.error ? (
-            <AppText
-              numberOfLines={3}
-              label={mqttTest.publishResult || mqttTest.error}
-              style={[
-                styles.testFeedback,
-                mqttTest.error && !mqttTest.publishResult
-                  ? styles.testFeedbackError
-                  : undefined,
-              ]}
-            />
-          ) : null}
         </View>
+
+        {dashboard.commandFeedback ? (
+          <AppText
+            centered
+            numberOfLines={3}
+            label={dashboard.commandFeedback}
+            style={[
+              styles.commandFeedback,
+              dashboard.commandFeedbackIsError && styles.commandFeedbackError,
+            ]}
+          />
+        ) : null}
       </ScrollView>
+      <Loader visible={dashboard.isLoading} loaderColor="#0BB2C3" />
     </ImageBackground>
   );
 };

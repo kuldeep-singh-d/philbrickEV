@@ -1,8 +1,7 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 //local imports
-import { useMqtt, useSelector } from '@hooks';
-import { selectDeviceMqttTopic } from '@store/slices/devices/devices';
+import { useSelector } from '@hooks';
 import { routes } from '../routes';
 import * as Screens from '@screens/index';
 // import { routes } from '@navigation/routes';
@@ -11,12 +10,6 @@ const Stack = createNativeStackNavigator();
 
 export function Authorised() {
   const selectedDevice = useSelector(state => state.selectedDevice.data);
-  const selectedDeviceTopic = selectDeviceMqttTopic(selectedDevice);
-  useMqtt({
-    autoConnect: Boolean(selectedDeviceTopic),
-    autoSubscribeTopic: selectedDeviceTopic || undefined,
-    disconnectOnUnmount: true,
-  });
   const {
     addDevice,
     alerts,

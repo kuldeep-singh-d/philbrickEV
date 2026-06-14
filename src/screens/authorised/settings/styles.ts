@@ -94,6 +94,9 @@ export const useStyles = () => {
       borderRadius: moderateWidth(3),
       marginTop: moderateHeight(1.5),
     },
+    currentControlDisabled: {
+      opacity: 0.6,
+    },
     currentControlGradient: {
       position: 'absolute',
       top: 0,
@@ -133,6 +136,14 @@ export const useStyles = () => {
       borderWidth: 2,
       borderColor: '#FFFFFF',
       backgroundColor: '#0BB2C3',
+    },
+    currentStatus: {
+      color: '#0A8E9B',
+      fontSize: moderateHeight(1.4),
+      marginTop: moderateHeight(0.8),
+    },
+    currentStatusError: {
+      color: '#B4232A',
     },
   });
 };

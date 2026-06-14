@@ -22,6 +22,8 @@ import java.util.Date
 import java.util.Locale
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledFuture
+import java.util.concurrent.TimeUnit
 import javax.net.ssl.KeyManagerFactory
 import javax.net.ssl.SSLContext
 import javax.net.ssl.SSLSocket
@@ -33,7 +35,9 @@ class MqttClientModule(private val reactContext: ReactApplicationContext) :
 
   private val executor: ExecutorService = Executors.newSingleThreadExecutor()
   private val readerExecutor: ExecutorService = Executors.newSingleThreadExecutor()
+  private val keepAliveExecutor = Executors.newSingleThreadScheduledExecutor()
   private var socket: SSLSocket? = null
+  private var keepAliveTask: ScheduledFuture<*>? = null
   @Volatile
   private var isReading = false
   private var nextPacketIdentifier = 1
@@ -109,6 +113,7 @@ class MqttClientModule(private val reactContext: ReactApplicationContext) :
         }
 
         socket = sslSocket
+        startKeepAlive(sslSocket, keepAliveSeconds)
         log("MQTT connection established")
         promise.resolve(connectionResult(true, clientId))
       } catch (error: Throwable) {
@@ -337,6 +342,8 @@ class MqttClientModule(private val reactContext: ReactApplicationContext) :
 
   private fun disconnectSocket() {
     isReading = false
+    keepAliveTask?.cancel(false)
+    keepAliveTask = null
     try {
       socket?.close()
     } catch (_: Throwable) {
@@ -458,6 +465,7 @@ class MqttClientModule(private val reactContext: ReactApplicationContext) :
             0x30 -> handlePublishPacket(fixedHeader, packet)
             0x90 -> log("MQTT SUBACK received")
             0xB0 -> log("MQTT UNSUBACK received")
+            0xD0 -> log("MQTT PINGRESP received")
             else -> log("MQTT packet ignored type=${fixedHeader and 0xF0}")
           }
         } catch (_: SocketTimeoutException) {
@@ -469,6 +477,38 @@ class MqttClientModule(private val reactContext: ReactApplicationContext) :
         }
       }
     }
+  }
+
+  private fun startKeepAlive(activeSocket: SSLSocket, keepAliveSeconds: Int) {
+    keepAliveTask?.cancel(false)
+    keepAliveTask = null
+
+    if (keepAliveSeconds <= 0) {
+      return
+    }
+
+    val pingIntervalSeconds = maxOf(1L, keepAliveSeconds.toLong() / 2)
+    keepAliveTask = keepAliveExecutor.scheduleAtFixedRate(
+      {
+        executor.execute {
+          if (socket !== activeSocket || activeSocket.isClosed) {
+            return@execute
+          }
+
+          try {
+            activeSocket.outputStream.write(byteArrayOf(0xC0.toByte(), 0x00))
+            activeSocket.outputStream.flush()
+            log("MQTT PINGREQ sent")
+          } catch (error: Throwable) {
+            log("MQTT keepalive failed: ${error.javaClass.simpleName}: ${error.message}")
+            disconnectSocket()
+          }
+        }
+      },
+      pingIntervalSeconds,
+      pingIntervalSeconds,
+      TimeUnit.SECONDS,
+    )
   }
 
   private fun handlePublishPacket(fixedHeader: Int, packet: ByteArray) {

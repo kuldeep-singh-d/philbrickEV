@@ -33,6 +33,30 @@ describe('dashboard MQTT data mapping', () => {
     ]);
   });
 
+  it('maps the live EV device payload used by the status publisher', () => {
+    const telemetry = parseDashboardMessage(
+      JSON.stringify({
+        cp_stat: 0,
+        votlageR: 230.4,
+        votlageY: 0,
+        votlageB: 0,
+        currentR: 0,
+        currentY: 0,
+        currentB: 0,
+        power: 0,
+        temperature: 27,
+        setcurrentfb: 12,
+        auth: 1,
+      }),
+    );
+
+    expect(telemetry.cpStatusText).toBe('NOT CONNECTED');
+    expect(telemetry.temperature).toBe(27);
+    expect(telemetry.setCurrent).toBe(12);
+    expect(telemetry.voltage).toBe(230.4);
+    expect(telemetry.phases.R).toEqual({ voltage: 230.4, current: 0 });
+  });
+
   it('accepts future camelCase aliases and device capacity fallback', () => {
     const telemetry = parseDashboardMessage(
       JSON.stringify({
@@ -44,9 +68,7 @@ describe('dashboard MQTT data mapping', () => {
       { evseCapacity: 4 },
     );
 
-    expect(telemetry.cpStatusText).toBe(
-      'CONNECTED (Waiting Authentication)',
-    );
+    expect(telemetry.cpStatusText).toBe('CONNECTED (Waiting Authentication)');
     expect(telemetry.duration).toBe('02:10:50');
     expect(telemetry.evseCapacityText).toBe('22 kW');
   });
@@ -63,6 +85,6 @@ describe('dashboard MQTT data mapping', () => {
   it('exposes all requested status, capacity, and fault mappings', () => {
     expect(getCpStatusString(6)).toBe('CP ERROR');
     expect(getEvseCapacityText(3)).toBe('11 kW');
-    expect(getActiveFaults(1 << 14)).toEqual(['rcdTestFailed']);
+    expect(getActiveFaults(2 ** 14)).toEqual(['rcdTestFailed']);
   });
 });

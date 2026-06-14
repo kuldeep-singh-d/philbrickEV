@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, View } from 'react-native';
+import { ActivityIndicator, Pressable, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { Svgs } from '@assets/svgs';
@@ -83,7 +83,11 @@ export const Settings = () => {
         onAccessibilityAction={currentControl.handleAccessibilityAction}
         onLayout={currentControl.handleLayout}
         onPress={currentControl.handleTap}
-        style={styles.currentControl}
+        disabled={!currentControl.canSet}
+        style={[
+          styles.currentControl,
+          !currentControl.canSet && styles.currentControlDisabled,
+        ]}
         {...currentControl.panHandlers}
       >
         <Svg
@@ -112,11 +116,15 @@ export const Settings = () => {
         </Svg>
 
         <View pointerEvents="none" style={styles.currentControlContent}>
-          <AppText
-            semibold
-            label={`${currentControl.value} A`}
-            style={styles.currentValue}
-          />
+          {currentControl.isSetting ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <AppText
+              semibold
+              label={`${currentControl.value} A`}
+              style={styles.currentValue}
+            />
+          )}
 
           <View style={styles.currentTrack}>
             <View
@@ -134,6 +142,17 @@ export const Settings = () => {
           </View>
         </View>
       </Pressable>
+
+      {currentControl.statusMessage ? (
+        <AppText
+          centered
+          label={currentControl.statusMessage}
+          style={[
+            styles.currentStatus,
+            currentControl.statusIsError && styles.currentStatusError,
+          ]}
+        />
+      ) : null}
     </AuthorisedScreen>
   );
 };

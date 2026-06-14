@@ -13,9 +13,11 @@ import { clearUserStorage } from '@utils/mobileDevice';
 import { useNavigation } from '@react-navigation/native';
 import { clearLoginRes } from '@store/slices/auth/login';
 import { setLoginState } from '@store/slices/localStates/loginState';
-import { useDeviceDimensions, useDispatch, useSelector } from '@hooks';
+import { useDeviceDimensions, useDispatch, useMqtt, useSelector } from '@hooks';
 import { clearLogoutResponse, logout } from '@store/slices/auth/logout';
+import { selectDeviceMqttTopic } from '@store/slices/devices/devices';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createDeviceMqttTopics, mqttPayloads } from '../../../mqtt/mqttTopics';
 
 const MIN_CURRENT = 1;
 const MAX_CURRENT = 32;
@@ -30,8 +32,27 @@ export const useSettings = () => {
   const logoutResponse = useSelector(state => state.logout);
   const loginResponse = useSelector(state => state.login);
   const registerResponse = useSelector(state => state.register);
+  const selectedDevice = useSelector(state => state.selectedDevice.data);
+  const selectedDeviceId = selectDeviceMqttTopic(selectedDevice);
+  const topics = useMemo(
+    () => createDeviceMqttTopics(selectedDeviceId),
+    [selectedDeviceId],
+  );
+  const {
+    error: mqttError,
+    isConnected: isMqttConnected,
+    isInitializing: isMqttInitializing,
+    publish,
+    retry,
+  } = useMqtt({
+    autoConnect: Boolean(topics),
+    autoRetryCount: 2,
+  });
   const [current, setCurrent] = useState(DEFAULT_CURRENT);
   const [currentControlWidth, setCurrentControlWidth] = useState(0);
+  const [isSettingCurrent, setIsSettingCurrent] = useState(false);
+  const currentRef = useRef(DEFAULT_CURRENT);
+  const isAdjustingCurrentRef = useRef(false);
   const currentControlPadding = moderateWidth(5);
   const currentThumbSize = moderateHeight(1.5);
   const currentTrackWidth = Math.max(
@@ -46,12 +67,60 @@ export const useSettings = () => {
     registerResponse.data?.data?.customer ||
     {};
 
+  const setCurrentValue = useCallback((nextCurrent: number) => {
+    const normalizedCurrent = Math.max(
+      MIN_CURRENT,
+      Math.min(nextCurrent, MAX_CURRENT),
+    );
+    currentRef.current = normalizedCurrent;
+    setCurrent(normalizedCurrent);
+    return normalizedCurrent;
+  }, []);
+
+  const publishCurrent = useCallback(
+    async (nextCurrent: number) => {
+      if (!topics) {
+        show.warn('Select a charger before setting the current.');
+        return;
+      }
+
+      if (!isMqttConnected) {
+        show.warn('The charger is not connected yet. Please try again.');
+        retry();
+        return;
+      }
+
+      if (isSettingCurrent) {
+        return;
+      }
+
+      setIsSettingCurrent(true);
+
+      try {
+        await publish(
+          topics.publish.setCurrent,
+          mqttPayloads.setCurrent(nextCurrent),
+        );
+        show.success(`Charging current set to ${nextCurrent} A.`);
+      } catch (error) {
+        show.error(
+          error instanceof Error
+            ? error.message
+            : 'Unable to set charging current.',
+        );
+      } finally {
+        setIsSettingCurrent(false);
+      }
+    },
+    [isMqttConnected, isSettingCurrent, publish, retry, topics],
+  );
+
   const updateCurrentFromPosition = useCallback(
     (positionX: number) => {
       const usableTrackWidth = currentTrackWidth - currentThumbSize;
 
       if (usableTrackWidth <= 0) {
-        return;
+        return undefined;
       }
 
       const trackStart = currentControlPadding + currentThumbSize / 2;
@@ -64,9 +133,14 @@ export const useSettings = () => {
           (clampedPosition / usableTrackWidth) * (MAX_CURRENT - MIN_CURRENT),
       );
 
-      setCurrent(Math.max(MIN_CURRENT, Math.min(nextCurrent, MAX_CURRENT)));
+      return setCurrentValue(nextCurrent);
     },
-    [currentControlPadding, currentThumbSize, currentTrackWidth],
+    [
+      currentControlPadding,
+      currentThumbSize,
+      currentTrackWidth,
+      setCurrentValue,
+    ],
   );
 
   const handleCurrentControlLayout = useCallback(
@@ -78,33 +152,69 @@ export const useSettings = () => {
 
   const handleCurrentTap = useCallback(
     ({ nativeEvent }: GestureResponderEvent) => {
-      updateCurrentFromPosition(nativeEvent.locationX);
+      if (isAdjustingCurrentRef.current) {
+        return;
+      }
+
+      const nextCurrent = updateCurrentFromPosition(nativeEvent.locationX);
+
+      if (nextCurrent !== undefined) {
+        publishCurrent(nextCurrent).catch(() => undefined);
+      }
     },
-    [updateCurrentFromPosition],
+    [publishCurrent, updateCurrentFromPosition],
   );
 
   const currentPanResponder = useMemo(
     () =>
       PanResponder.create({
+        onStartShouldSetPanResponder: () => false,
         onMoveShouldSetPanResponder: (_, gestureState) =>
+          isMqttConnected &&
+          !isSettingCurrent &&
           Math.abs(gestureState.dx) > Math.abs(gestureState.dy) &&
           Math.abs(gestureState.dx) > 2,
+        onPanResponderGrant: () => {
+          isAdjustingCurrentRef.current = true;
+        },
         onPanResponderMove: event => {
           updateCurrentFromPosition(event.nativeEvent.locationX);
         },
+        onPanResponderRelease: () => {
+          publishCurrent(currentRef.current)
+            .catch(() => undefined)
+            .finally(() => {
+              isAdjustingCurrentRef.current = false;
+            });
+        },
+        onPanResponderTerminate: () => {
+          isAdjustingCurrentRef.current = false;
+        },
+        onPanResponderTerminationRequest: () => false,
       }),
-    [updateCurrentFromPosition],
+    [
+      isSettingCurrent,
+      isMqttConnected,
+      publishCurrent,
+      updateCurrentFromPosition,
+    ],
   );
 
   const handleCurrentAccessibilityAction = useCallback(
     ({ nativeEvent }: AccessibilityActionEvent) => {
+      let nextCurrent = currentRef.current;
+
       if (nativeEvent.actionName === 'increment') {
-        setCurrent(value => Math.min(value + 1, MAX_CURRENT));
+        nextCurrent = setCurrentValue(currentRef.current + 1);
       } else if (nativeEvent.actionName === 'decrement') {
-        setCurrent(value => Math.max(value - 1, MIN_CURRENT));
+        nextCurrent = setCurrentValue(currentRef.current - 1);
+      } else {
+        return;
       }
+
+      publishCurrent(nextCurrent).catch(() => undefined);
     },
-    [],
+    [publishCurrent, setCurrentValue],
   );
 
   const profile = useMemo(() => {
@@ -228,6 +338,14 @@ export const useSettings = () => {
       handleLayout: handleCurrentControlLayout,
       handleTap: handleCurrentTap,
       handleAccessibilityAction: handleCurrentAccessibilityAction,
+      isSetting: isSettingCurrent,
+      canSet: Boolean(topics && isMqttConnected && !isSettingCurrent),
+      statusMessage: isMqttInitializing
+        ? 'Connecting to charger...'
+        : mqttError
+        ? 'Unable to connect to the charger.'
+        : '',
+      statusIsError: Boolean(mqttError && !isMqttInitializing),
     },
   };
 };

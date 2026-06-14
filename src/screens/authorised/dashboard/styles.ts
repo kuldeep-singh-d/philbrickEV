@@ -242,6 +242,7 @@ export const useStyles = () => {
     swipeHandle: {
       position: 'absolute',
       top: 0,
+      left: 0,
       bottom: 0,
       width: moderateWidth(16),
       alignItems: 'center',
@@ -259,89 +260,58 @@ export const useStyles = () => {
       backgroundColor: '#F42F35',
       shadowColor: '#F42F35',
     },
-    mqttTestCard: {
-      marginTop: moderateHeight(2),
+    controlDisabled: {
+      opacity: 0.55,
+    },
+    connectionErrorCard: {
+      width: '100%',
       padding: moderateWidth(4),
       borderWidth: 1,
-      borderColor: '#EEEEEE',
+      borderColor: '#F3C2C4',
       borderRadius: moderateWidth(4),
-      backgroundColor: '#FFFFFF',
-      shadowColor: '#000000',
-      shadowOpacity: 0.08,
-      shadowRadius: 12,
-      shadowOffset: { width: 0, height: 5 },
-      elevation: 4,
-    },
-    testTitle: {
-      color: '#102348',
-      fontSize: moderateHeight(2.2),
-      marginBottom: moderateHeight(1.5),
-    },
-    testRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
+      backgroundColor: '#FFF7F7',
       marginBottom: moderateHeight(1),
     },
-    testLabel: {
-      color: '#6B7280',
-      fontSize: moderateHeight(1.6),
+    connectionErrorText: {
+      color: '#9F1D24',
+      fontSize: moderateHeight(1.55),
+      lineHeight: moderateHeight(2.2),
     },
-    testValue: {
-      flexShrink: 1,
-      marginLeft: moderateWidth(3),
-      color: '#111827',
-      fontSize: moderateHeight(1.6),
-      textAlign: 'right',
-    },
-    connectionStatus: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    statusDot: {
-      width: moderateWidth(2.2),
-      height: moderateWidth(2.2),
-      borderRadius: moderateWidth(1.1),
-    },
-    statusDotConnected: {
-      backgroundColor: '#3AC34B',
-    },
-    statusDotDisconnected: {
-      backgroundColor: '#F59E0B',
-    },
-    receivedBox: {
-      marginTop: moderateHeight(0.7),
-      padding: moderateWidth(3),
+    retryButton: {
+      alignSelf: 'center',
+      width: moderateWidth(36),
+      height: moderateHeight(5),
       borderRadius: moderateWidth(2.5),
-      backgroundColor: '#F2FBF5',
     },
-    receivedTitle: {
-      color: '#102348',
-      fontSize: moderateHeight(1.7),
-      marginBottom: moderateHeight(0.7),
+    chargerErrorCard: {
+      width: '100%',
+      paddingHorizontal: moderateWidth(4),
+      paddingVertical: moderateHeight(1.2),
+      borderWidth: 1,
+      borderColor: '#F4D38A',
+      borderRadius: moderateWidth(4),
+      backgroundColor: '#FFF9E8',
+      marginBottom: moderateHeight(1),
     },
-    receivedMeta: {
-      color: '#6B7280',
-      fontSize: moderateHeight(1.4),
-      marginBottom: moderateHeight(0.5),
+    chargerErrorTitle: {
+      color: '#8A5A00',
+      fontSize: moderateHeight(1.6),
+      marginBottom: moderateHeight(0.3),
     },
-    receivedMessage: {
-      color: '#111827',
-      fontSize: moderateHeight(1.5),
+    chargerErrorText: {
+      color: '#6F4B0B',
+      fontSize: moderateHeight(1.45),
       lineHeight: moderateHeight(2),
     },
-    testButton: {
-      height: moderateHeight(5.5),
-      marginTop: moderateHeight(1.5),
-    },
-    testFeedback: {
-      marginTop: moderateHeight(1),
+    commandFeedback: {
       color: '#15803D',
-      fontSize: moderateHeight(1.4),
-      textAlign: 'center',
+      fontSize: moderateHeight(1.45),
+      lineHeight: moderateHeight(2),
+      marginTop: moderateHeight(1),
+      paddingHorizontal: moderateWidth(4),
     },
-    testFeedbackError: {
-      color: '#DC2626',
+    commandFeedbackError: {
+      color: '#B4232A',
     },
   });
 };

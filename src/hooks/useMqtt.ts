@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 
 import { mqttConfig, type MqttConfig } from '../mqtt/mqttConfig';
@@ -8,7 +8,9 @@ import {
   startMqttConnection,
   stopMqttConnection,
   subscribeMqttTopic,
+  subscribeMqttTopics,
   unsubscribeMqttTopic,
+  unsubscribeMqttTopics,
   type MqttMessage,
 } from '../mqtt/mqttClient';
 
@@ -31,6 +33,9 @@ export interface UseMqttOptions {
   defaultTopic?: string;
   autoConnect?: boolean;
   autoSubscribeTopic?: string;
+  autoSubscribeTopics?: readonly string[];
+  autoRetryCount?: number;
+  retryDelayMs?: number;
   disconnectOnUnmount?: boolean;
   onMessage?: (message: MqttMessage) => void;
 }
@@ -58,53 +63,68 @@ const getErrorMessage = (error: unknown) => {
   return 'MQTT request failed';
 };
 
+const wait = (milliseconds: number) =>
+  new Promise<void>(resolve => setTimeout(resolve, milliseconds));
+
 export const useMqtt = ({
   config = mqttConfig,
   defaultTopic,
   autoConnect = false,
   autoSubscribeTopic,
+  autoSubscribeTopics = [],
+  autoRetryCount = 0,
+  retryDelayMs = 500,
   disconnectOnUnmount = false,
   onMessage,
 }: UseMqttOptions = {}) => {
   const mountedRef = useRef(true);
+  const onMessageRef = useRef(onMessage);
+  const autoFlowIdRef = useRef(0);
 
   const [status, setStatus] = useState<MqttConnectionStatus>('idle');
   const [latestMessage, setLatestMessage] = useState<MqttMessage | null>(null);
-  const [subscribedTopic, setSubscribedTopic] = useState('');
+  const [subscribedTopics, setSubscribedTopics] = useState<string[]>([]);
   const [error, setError] = useState('');
+  const [isInitializing, setIsInitializing] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
+
+  const autoTopicsKey = useMemo(
+    () =>
+      [...autoSubscribeTopics, autoSubscribeTopic]
+        .filter((topic): topic is string => Boolean(topic?.trim()))
+        .map(topic => topic.trim())
+        .filter((topic, index, topics) => topics.indexOf(topic) === index)
+        .join('\n'),
+    [autoSubscribeTopic, autoSubscribeTopics],
+  );
+  const normalizedAutoTopics = useMemo(
+    () => (autoTopicsKey ? autoTopicsKey.split('\n') : []),
+    [autoTopicsKey],
+  );
+
+  useEffect(() => {
+    onMessageRef.current = onMessage;
+  }, [onMessage]);
 
   const connect = useCallback(
     async (nextConfig: MqttConfig = config): Promise<MqttConnectionResult> => {
-      logMqtt('connect requested', {
-        enabled: nextConfig.enabled,
-        host: nextConfig.host,
-        port: nextConfig.port,
-        cleanSession: nextConfig.cleanSession,
-        keepAliveSeconds: nextConfig.keepAliveSeconds,
-      });
       setStatus('connecting');
-      logMqtt('status changed', 'connecting');
       setError('');
 
       try {
         const result = await startMqttConnection(nextConfig);
 
         if (mountedRef.current) {
-          const nextStatus = result.connected ? 'connected' : 'skipped';
-          setStatus(nextStatus);
-          logMqtt('status changed', nextStatus);
+          setStatus(result.connected ? 'connected' : 'skipped');
         }
 
-        logMqtt('connection result', result);
         return result;
       } catch (connectionError) {
         if (mountedRef.current) {
           setStatus('error');
-          logMqtt('status changed', 'error');
           setError(getErrorMessage(connectionError));
         }
 
-        logMqtt('connection failed', connectionError);
         throw connectionError;
       }
     },
@@ -112,39 +132,26 @@ export const useMqtt = ({
   );
 
   const disconnect = useCallback(async (): Promise<MqttDisconnectResult> => {
-    logMqtt('disconnect requested');
     setError('');
 
     try {
       const result = await stopMqttConnection();
 
       if (mountedRef.current) {
-        let nextStatus: MqttConnectionStatus = 'disconnected';
+        setStatus(result.connected ? 'connected' : 'disconnected');
 
-        if (result.connected) {
-          nextStatus = 'connected';
-        } else if ('skipped' in result && result.skipped) {
-          nextStatus = 'skipped';
-        }
-
-        setStatus(nextStatus);
-        logMqtt('status changed', nextStatus);
         if (!result.connected) {
-          setSubscribedTopic('');
-          logMqtt('subscribed topic cleared');
+          setSubscribedTopics([]);
         }
       }
 
-      logMqtt('disconnect result', result);
       return result;
     } catch (disconnectError) {
       if (mountedRef.current) {
         setStatus('error');
-        logMqtt('status changed', 'error');
         setError(getErrorMessage(disconnectError));
       }
 
-      logMqtt('disconnect failed', disconnectError);
       throw disconnectError;
     }
   }, []);
@@ -157,166 +164,264 @@ export const useMqtt = ({
         throw new Error('MQTT subscribe topic is required');
       }
 
-      logMqtt('subscribe requested', { topic: nextTopic });
       setError('');
 
       try {
         const result = await subscribeMqttTopic(nextTopic);
 
         if (mountedRef.current) {
-          setSubscribedTopic(result.topic);
-          logMqtt('subscribed topic changed', result.topic);
+          setSubscribedTopics(current =>
+            current.includes(result.topic)
+              ? current
+              : [...current, result.topic],
+          );
         }
 
-        logMqtt('subscribe result', result);
         return result;
       } catch (subscribeError) {
         if (mountedRef.current) {
           setError(getErrorMessage(subscribeError));
         }
 
-        logMqtt('subscribe failed', subscribeError);
         throw subscribeError;
       }
     },
     [defaultTopic],
   );
 
+  const subscribeMany = useCallback(async (topics: readonly string[]) => {
+    setError('');
+
+    try {
+      const result = await subscribeMqttTopics(topics);
+
+      if (mountedRef.current) {
+        setSubscribedTopics(current => [
+          ...new Set([...current, ...result.topics]),
+        ]);
+      }
+
+      return result;
+    } catch (subscribeError) {
+      if (mountedRef.current) {
+        setError(getErrorMessage(subscribeError));
+      }
+
+      throw subscribeError;
+    }
+  }, []);
+
   const unsubscribe = useCallback(
     async (topic?: string): Promise<MqttUnsubscribeResult> => {
-      const nextTopic = topic || subscribedTopic;
+      const nextTopic = topic || subscribedTopics[0];
 
       if (!nextTopic) {
         throw new Error('MQTT unsubscribe topic is required');
       }
 
-      logMqtt('unsubscribe requested', { topic: nextTopic });
       setError('');
 
       try {
         const result = await unsubscribeMqttTopic(nextTopic);
 
         if (mountedRef.current && result.unsubscribed) {
-          setSubscribedTopic('');
-          logMqtt('subscribed topic cleared');
+          setSubscribedTopics(current =>
+            current.filter(activeTopic => activeTopic !== result.topic),
+          );
         }
 
-        logMqtt('unsubscribe result', result);
         return result;
       } catch (unsubscribeError) {
         if (mountedRef.current) {
           setError(getErrorMessage(unsubscribeError));
         }
 
-        logMqtt('unsubscribe failed', unsubscribeError);
         throw unsubscribeError;
       }
     },
-    [subscribedTopic],
+    [subscribedTopics],
   );
+
+  const unsubscribeMany = useCallback(async (topics: readonly string[]) => {
+    setError('');
+
+    try {
+      const result = await unsubscribeMqttTopics(topics);
+
+      if (mountedRef.current) {
+        const removedTopics = new Set(result.topics);
+        setSubscribedTopics(current =>
+          current.filter(topic => !removedTopics.has(topic)),
+        );
+      }
+
+      return result;
+    } catch (unsubscribeError) {
+      if (mountedRef.current) {
+        setError(getErrorMessage(unsubscribeError));
+      }
+
+      throw unsubscribeError;
+    }
+  }, []);
 
   const publish = useCallback(
     async (topic?: string, message?: string): Promise<MqttPublishResult> => {
-      logMqtt('publish requested', { topic, message });
       setError('');
 
       try {
-        const result = await publishMqttMessage(topic, message);
-        logMqtt('publish result', result);
-        return result;
+        return await publishMqttMessage(topic, message);
       } catch (publishError) {
         if (mountedRef.current) {
+          setStatus('error');
           setError(getErrorMessage(publishError));
         }
 
-        logMqtt('publish failed', publishError);
         throw publishError;
       }
     },
     [],
   );
 
+  const retry = useCallback(() => {
+    setRetryKey(value => value + 1);
+  }, []);
+
   useEffect(() => {
     mountedRef.current = true;
-    logMqtt('listener registering');
 
     const subscription = addMqttMessageListener(message => {
       if (mountedRef.current) {
         setLatestMessage(message);
-        logMqtt('latest message changed', message);
       }
 
-      logMqtt('message received', message);
-      onMessage?.(message);
+      onMessageRef.current?.(message);
     });
 
-    logMqtt('listener registered');
-
     return () => {
-      logMqtt('listener cleanup started');
       mountedRef.current = false;
       subscription.remove();
-      logMqtt('listener removed');
 
       if (disconnectOnUnmount) {
-        logMqtt('cleanup disconnect requested');
         stopMqttConnection().catch(disconnectError => {
           logMqtt('cleanup disconnect failed', disconnectError);
         });
       }
     };
-  }, [disconnectOnUnmount, onMessage]);
+  }, [disconnectOnUnmount]);
 
   useEffect(() => {
     if (!autoConnect) {
-      logMqtt('auto connect disabled');
+      setIsInitializing(false);
       return;
     }
 
+    const flowId = autoFlowIdRef.current + 1;
+    autoFlowIdRef.current = flowId;
     let cancelled = false;
 
-    logMqtt('auto connect started', { autoSubscribeTopic });
+    const runAutoFlow = async () => {
+      if (mountedRef.current) {
+        setIsInitializing(true);
+        setError('');
+        setLatestMessage(null);
+      }
 
-    connect()
-      .then(result => {
-        logMqtt('auto connect completed', result);
-        if (
-          !cancelled &&
-          result.connected &&
-          typeof autoSubscribeTopic === 'string'
-        ) {
-          logMqtt('auto subscribe started', { topic: autoSubscribeTopic });
-          return subscribe(autoSubscribeTopic);
-        }
+      for (let attempt = 0; attempt <= autoRetryCount; attempt += 1) {
+        try {
+          const result = await connect();
 
-        return undefined;
-      })
-      .then(result => {
-        if (result) {
-          logMqtt('auto subscribe completed', result);
+          if (!result.connected) {
+            throw new Error('MQTT connection is not enabled');
+          }
+
+          if (cancelled || autoFlowIdRef.current !== flowId) {
+            return;
+          }
+
+          if (normalizedAutoTopics.length > 0) {
+            await subscribeMany(normalizedAutoTopics);
+          }
+
+          if (
+            !cancelled &&
+            mountedRef.current &&
+            autoFlowIdRef.current === flowId
+          ) {
+            setStatus('connected');
+            setError('');
+            setIsInitializing(false);
+          }
+          return;
+        } catch (autoConnectError) {
+          const isFinalAttempt = attempt >= autoRetryCount;
+
+          if (
+            isFinalAttempt &&
+            !cancelled &&
+            mountedRef.current &&
+            autoFlowIdRef.current === flowId
+          ) {
+            setStatus('error');
+            setError(getErrorMessage(autoConnectError));
+            setIsInitializing(false);
+            return;
+          }
+
+          await stopMqttConnection().catch(disconnectError => {
+            logMqtt('retry disconnect failed', disconnectError);
+          });
+
+          if (retryDelayMs > 0) {
+            await wait(retryDelayMs);
+          }
+
+          if (cancelled || autoFlowIdRef.current !== flowId) {
+            return;
+          }
         }
-      })
-      .catch(autoConnectError => {
-        logMqtt('auto connect flow failed', autoConnectError);
-      });
+      }
+    };
+
+    runAutoFlow().catch(autoFlowError => {
+      logMqtt('auto connection flow failed', autoFlowError);
+    });
 
     return () => {
       cancelled = true;
-      logMqtt('auto connect effect cleanup');
+
+      if (normalizedAutoTopics.length > 0) {
+        unsubscribeMqttTopics(normalizedAutoTopics).catch(unsubscribeError => {
+          logMqtt('auto topic cleanup failed', unsubscribeError);
+        });
+      }
     };
-  }, [autoConnect, autoSubscribeTopic, connect, subscribe]);
+  }, [
+    autoConnect,
+    autoRetryCount,
+    connect,
+    normalizedAutoTopics,
+    retryDelayMs,
+    retryKey,
+    subscribeMany,
+  ]);
 
   return {
     status,
     error,
-    isConnected: status === 'connected',
+    isConnected: status === 'connected' && !isInitializing,
+    isInitializing,
     latestMessage,
-    subscribedTopic,
+    subscribedTopic: subscribedTopics[0] || '',
+    subscribedTopics,
     connect,
     disconnect,
     subscribe,
+    subscribeMany,
     unsubscribe,
+    unsubscribeMany,
     publish,
+    retry,
   };
 };
 

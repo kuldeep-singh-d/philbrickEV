@@ -8,6 +8,7 @@ class MqttClient: RCTEventEmitter {
   private let readerQueue = DispatchQueue(label: "com.philbrickev.mqtt.reader")
   private var inputStream: InputStream?
   private var outputStream: OutputStream?
+  private var keepAliveTimer: DispatchSourceTimer?
   private var isReading = false
   private var nextPacketIdentifier = 1
 
@@ -87,6 +88,7 @@ class MqttClient: RCTEventEmitter {
 
         self.inputStream = streams.input
         self.outputStream = streams.output
+        self.startKeepAlive(output: streams.output, keepAliveSeconds: keepAliveSeconds)
         resolve(["connected": true, "clientId": clientId])
       } catch {
         self.disconnectStreams()
@@ -310,6 +312,8 @@ class MqttClient: RCTEventEmitter {
 
   private func disconnectStreams() {
     isReading = false
+    keepAliveTimer?.cancel()
+    keepAliveTimer = nil
     inputStream?.close()
     outputStream?.close()
     inputStream = nil
@@ -408,6 +412,8 @@ class MqttClient: RCTEventEmitter {
             self.log("MQTT SUBACK received")
           case 0xB0:
             self.log("MQTT UNSUBACK received")
+          case 0xD0:
+            self.log("MQTT PINGRESP received")
           default:
             self.log("MQTT packet ignored type=\(fixedHeader & 0xF0)")
           }
@@ -419,6 +425,34 @@ class MqttClient: RCTEventEmitter {
         }
       }
     }
+  }
+
+  private func startKeepAlive(output: OutputStream, keepAliveSeconds: Int) {
+    keepAliveTimer?.cancel()
+    keepAliveTimer = nil
+
+    guard keepAliveSeconds > 0 else {
+      return
+    }
+
+    let interval = DispatchTimeInterval.seconds(max(1, keepAliveSeconds / 2))
+    let timer = DispatchSource.makeTimerSource(queue: queue)
+    timer.schedule(deadline: .now() + interval, repeating: interval)
+    timer.setEventHandler { [weak self, weak output] in
+      guard let self, let output, self.outputStream === output else {
+        return
+      }
+
+      do {
+        try self.write([0xC0, 0x00], to: output)
+        self.log("MQTT PINGREQ sent")
+      } catch {
+        self.log("MQTT keepalive failed: \(error.localizedDescription)")
+        self.disconnectStreams()
+      }
+    }
+    keepAliveTimer = timer
+    timer.resume()
   }
 
   private func handlePublishPacket(fixedHeader: UInt8, packet: [UInt8]) throws {

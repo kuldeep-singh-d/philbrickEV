@@ -3,6 +3,7 @@ import reducer, {
   setSelectedDevice,
 } from '../src/store/slices/devices/selectedDevice';
 import rootReducer from '../src/store/reducer';
+import { selectDeviceMqttTopic } from '../src/store/slices/devices/devices';
 
 describe('selected device state', () => {
   const device = {
@@ -29,5 +30,11 @@ describe('selected device state', () => {
     expect(
       rootReducer(selectedState, { type: 'login/reset' }).selectedDevice.data,
     ).toBeNull();
+  });
+
+  it('normalizes the selected device ID for MQTT', () => {
+    expect(selectDeviceMqttTopic(device)).toBe('DEV-001');
+    expect(selectDeviceMqttTopic({ id: 42 })).toBe('');
+    expect(selectDeviceMqttTopic(null)).toBe('');
   });
 });
