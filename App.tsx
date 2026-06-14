@@ -10,7 +10,10 @@ import {
 } from 'react-native-reanimated';
 import Navigation from 'src/navigations';
 import store from '@store/configureStore';
-import { initializeNotificationListeners } from './src/services/handleNotification';
+import {
+  initializeNotificationListeners,
+  requestNotificationPermissionAndToken,
+} from './src/services/handleNotification';
 
 // This is the default configuration
 configureReanimatedLogger({
@@ -21,7 +24,15 @@ configureReanimatedLogger({
 const persistor = persistStore(store);
 
 const App = () => {
-  useEffect(() => initializeNotificationListeners(), []);
+  useEffect(() => {
+    const unsubscribe = initializeNotificationListeners();
+
+    requestNotificationPermissionAndToken().catch(error => {
+      console.warn('Unable to request notification permission:', error);
+    });
+
+    return unsubscribe;
+  }, []);
 
   return (
     <Provider store={store}>

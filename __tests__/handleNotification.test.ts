@@ -1,6 +1,8 @@
 import notifee from '@notifee/react-native';
 import {
   getMessaging,
+  getToken,
+  hasPermission,
   onMessage,
   setBackgroundMessageHandler,
 } from '@react-native-firebase/messaging';
@@ -9,6 +11,7 @@ import {
   displayRemoteNotification,
   initializeNotificationListeners,
   registerNotificationBackgroundHandlers,
+  requestNotificationPermissionAndToken,
 } from '../src/services/handleNotification';
 
 jest.mock('../src/store/actions/refreshAllLists', () => ({
@@ -18,6 +21,8 @@ jest.mock('../src/store/actions/refreshAllLists', () => ({
 describe('notification handling', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (hasPermission as jest.Mock).mockResolvedValue(1);
+    (getToken as jest.Mock).mockResolvedValue('test-fcm-token');
   });
 
   it('displays a foreground remote message with the production channel', async () => {
@@ -50,6 +55,14 @@ describe('notification handling', () => {
     expect(onMessage).toHaveBeenCalledTimes(1);
 
     unsubscribe();
+  });
+
+  it('returns the FCM token after notification permission is granted', async () => {
+    await expect(requestNotificationPermissionAndToken()).resolves.toBe(
+      'test-fcm-token',
+    );
+
+    expect(getToken).toHaveBeenCalledTimes(1);
   });
 
   it('only renders data-only messages in the background', async () => {

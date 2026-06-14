@@ -11,6 +11,7 @@
     "start": "npx react-native start --reset-cache",
     "pod": "cd ios && pod install --repo-update && cd ..",
     "android-clean": "cd android && ./gradlew clean && cd ..",
+    "postinstall": "node scripts/patch-react-native-date-picker.js",
     "debug-build": "cd android && ./gradlew assembleDebug && cd ..",
     "release-build": "cd android && ./gradlew assembleRelease && cd ..",
     "refresh-asset": "npx react-native bundle --platform android --dev false --entry-file index.js --bundle-output android/app/src/main/assets/index.android.bundle --assets-dest android/app/src/main/res"
