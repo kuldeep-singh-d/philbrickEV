@@ -1,17 +1,29 @@
+import { useRoute } from '@react-navigation/native';
+
 import useStyles from './styles';
 
-const ALERTS = [
-  { id: '1', title: 'Over Voltage' },
-  { id: '2', title: 'Over Voltage' },
-  { id: '3', title: 'Over Voltage' },
-  { id: '4', title: 'Over Voltage' },
-];
+type AlertRouteParams = {
+  alerts?: Array<{
+    id?: string;
+    title?: string;
+  }>;
+};
 
 export const useAlerts = () => {
   const styles = useStyles();
+  const route = useRoute();
+  const params = route.params as AlertRouteParams | undefined;
+  const alerts = Array.isArray(params?.alerts)
+    ? params.alerts
+        .filter(alert => alert?.title)
+        .map((alert, index) => ({
+          id: alert.id || `${index}`,
+          title: alert.title || 'Charger alert',
+        }))
+    : [];
 
   return {
-    alerts: ALERTS,
+    alerts,
     styles,
   };
 };

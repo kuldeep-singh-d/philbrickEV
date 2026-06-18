@@ -43,5 +43,20 @@ export default () => {
       fontSize: moderateHeight(2),
       marginLeft: moderateWidth(3),
     },
+    emptyState: {
+      minHeight: moderateHeight(12),
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: '#E5E7EB',
+      borderRadius: moderateWidth(3),
+      backgroundColor: '#FFFFFF',
+      paddingHorizontal: moderateWidth(4),
+    },
+    emptyText: {
+      color: '#6B7280',
+      fontSize: moderateHeight(1.8),
+      lineHeight: moderateHeight(2.5),
+    },
   });
 };

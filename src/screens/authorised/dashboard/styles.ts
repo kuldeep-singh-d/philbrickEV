@@ -137,10 +137,9 @@ export const useStyles = () => {
       fontSize: moderateHeight(2.05),
       lineHeight: moderateHeight(2.6),
     },
-    phaseCard: {
-      minHeight: moderateHeight(19.7),
-      paddingHorizontal: moderateWidth(3.6),
-      paddingVertical: moderateHeight(1.6),
+    phaseSection: {
+      paddingHorizontal: moderateWidth(3.5),
+      paddingVertical: moderateHeight(1.5),
     },
     sectionTitleRow: {
       flexDirection: 'row',
@@ -153,36 +152,64 @@ export const useStyles = () => {
       fontSize: moderateHeight(1.85),
       marginLeft: moderateWidth(2.5),
     },
-    phaseTable: {
-      flex: 1,
-      paddingVertical: moderateHeight(0.9),
-      borderWidth: 1,
-      borderColor: '#DCDCDC',
+    phaseMetricCard: {
+      minHeight: moderateHeight(10.5),
+      paddingHorizontal: moderateWidth(3.6),
+      paddingVertical: moderateHeight(1.3),
+      // marginBottom: moderateHeight(1),
+      // borderWidth: 1,
+      // borderColor: '#DDDDDD',
       borderRadius: moderateWidth(3),
-      backgroundColor: '#FAFAFA',
+      // backgroundColor: '#FAFAFA',
     },
-    phaseHeader: {
+    phaseCardHeader: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginBottom: moderateHeight(0.6),
+      marginBottom: moderateHeight(1),
     },
-    phaseHeaderText: {
-      flex: 1,
-      color: '#686868',
-      fontSize: moderateHeight(1.7),
-      textAlign: 'center',
-    },
-    phaseRow: {
-      flex: 1,
-      minHeight: moderateHeight(3),
-      flexDirection: 'row',
+    phaseBadge: {
+      width: moderateWidth(8),
+      height: moderateWidth(8),
+      maxWidth: 38,
+      maxHeight: 38,
       alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: moderateWidth(2.3),
+      backgroundColor: '#EAFBF1',
     },
-    phaseValue: {
+    phaseBadgeText: {
+      color: '#31C44C',
+      fontSize: moderateHeight(1.8),
+    },
+    phaseCardTitle: {
       flex: 1,
       color: '#080808',
-      fontSize: moderateHeight(1.65),
-      textAlign: 'center',
+      fontSize: moderateHeight(1.85),
+      marginLeft: moderateWidth(0.5),
+    },
+    phaseMetricGrid: {
+      flexDirection: 'row',
+      columnGap: moderateWidth(2.2),
+    },
+    phaseMiniMetric: {
+      flex: 1,
+      minHeight: moderateHeight(5.2),
+      justifyContent: 'center',
+      paddingHorizontal: moderateWidth(3),
+      borderWidth: 1,
+      borderColor: '#DDDDDD',
+      borderRadius: moderateWidth(2.5),
+      backgroundColor: '#FAFAFA',
+    },
+    phaseMiniLabel: {
+      color: '#686868',
+      fontSize: moderateHeight(1.45),
+      marginBottom: moderateHeight(0.3),
+    },
+    phaseMiniValue: {
+      color: '#000000',
+      fontSize: moderateHeight(1.95),
+      lineHeight: moderateHeight(2.5),
     },
     sessionCard: {
       minHeight: moderateHeight(9.5),

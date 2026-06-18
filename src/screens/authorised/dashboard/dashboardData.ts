@@ -17,7 +17,27 @@ export const FAULT_STATUS_BITS = Object.freeze([
 ] as const);
 
 type FaultName = (typeof FAULT_STATUS_BITS)[number];
+export const PHASE_NAMES = ['R', 'Y', 'B'] as const;
+export type PhaseName = (typeof PHASE_NAMES)[number];
 type UnknownRecord = Record<string, unknown>;
+
+export const FAULT_LABELS: Record<FaultName, string> = {
+  overVoltageRedPhase: 'Over voltage on R phase',
+  underVoltageRedPhase: 'Under voltage on R phase',
+  overCurrentRedPhase: 'Over current on R phase',
+  overTemperature: 'Over temperature',
+  scdTripTriggered: 'SCD trip triggered',
+  earthFaultTriggered: 'Earth fault triggered',
+  earthPresence: 'Earth presence fault',
+  overVoltageBluePhase: 'Over voltage on B phase',
+  overVoltageYellowPhase: 'Over voltage on Y phase',
+  overCurrentBluePhase: 'Over current on B phase',
+  overCurrentYellowPhase: 'Over current on Y phase',
+  underVoltageBluePhase: 'Under voltage on B phase',
+  underVoltageYellowPhase: 'Under voltage on Y phase',
+  finalDebouncedValue: 'Emergency stop',
+  rcdTestFailed: 'RCD test failed',
+};
 
 export interface DashboardTelemetry {
   cpStatus?: number;
@@ -28,11 +48,7 @@ export interface DashboardTelemetry {
   voltage: number;
   duration: string;
   evseCapacityText: string;
-  phases: {
-    R: { voltage: number; current: number };
-    Y: { voltage: number; current: number };
-    B: { voltage: number; current: number };
-  };
+  phases: Record<PhaseName, { voltage: number; current: number }>;
   faultStatus: number;
   activeFaults: FaultName[];
 }
@@ -164,12 +180,8 @@ export const parseDashboardMessage = (
     getNumber(source, ['evse_capacity', 'evseCapacity', 'capacity']) ??
     getNumber(device || {}, ['evse_capacity', 'evseCapacity', 'capacity']);
   const faultStatus =
-    getNumber(source, [
-      'fault_status',
-      'faultStatus',
-      'fault',
-      'fault_bits',
-    ]) ?? 0;
+    getNumber(source, ['fault_status', 'faultStatus', 'fault', 'fault_bits']) ??
+    0;
   const duration =
     getString(source, ['duration', 'timer', 'charging_time']) ??
     getNumber(source, ['duration_seconds', 'chargingTimeSeconds']);
@@ -209,4 +221,16 @@ export const formatMetric = (
   return new Intl.NumberFormat('en-US', {
     maximumFractionDigits,
   }).format(value);
+};
+
+export const getVisiblePhaseNames = (
+  telemetry: DashboardTelemetry,
+): PhaseName[] => {
+  const visiblePhases = PHASE_NAMES.filter(phase => {
+    const phaseTelemetry = telemetry.phases[phase];
+
+    return phaseTelemetry.voltage !== 0 || phaseTelemetry.current !== 0;
+  });
+
+  return visiblePhases.length > 0 ? visiblePhases : [...PHASE_NAMES];
 };

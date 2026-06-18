@@ -11,8 +11,17 @@ import {
   getMqttUserMessage,
 } from '../../../mqtt/mqttClient';
 import { createDeviceMqttTopics, mqttPayloads } from '../../../mqtt/mqttTopics';
-import { parseDashboardMessage } from './dashboardData';
+import {
+  FAULT_LABELS,
+  getActiveFaults,
+  parseDashboardMessage,
+} from './dashboardData';
 import useStyles from './styles';
+
+export type DashboardAlertItem = {
+  id: string;
+  title: string;
+};
 
 const getMessageText = (message: string, fallback: string) => {
   try {
@@ -26,6 +35,37 @@ const getMessageText = (message: string, fallback: string) => {
   } catch {
     return message.trim() || fallback;
   }
+};
+
+const getChargerErrorText = (message: string) => {
+  try {
+    const parsed = JSON.parse(message) as Record<string, unknown>;
+    const errorValue = parsed.error ?? parsed.fault ?? parsed.fault_status;
+    const numericError =
+      typeof errorValue === 'number'
+        ? errorValue
+        : typeof errorValue === 'string' && errorValue.trim()
+        ? Number(errorValue)
+        : undefined;
+
+    if (numericError === 0) {
+      return '';
+    }
+
+    if (numericError !== undefined && Number.isFinite(numericError)) {
+      const activeFaults = getActiveFaults(numericError);
+
+      if (activeFaults.length > 0) {
+        return activeFaults
+          .map(fault => FAULT_LABELS[fault] || fault)
+          .join(', ');
+      }
+    }
+  } catch {
+    return getMessageText(message, 'The charger reported an error.');
+  }
+
+  return getMessageText(message, 'The charger reported an error.');
 };
 
 export const useDashboard = () => {
@@ -91,6 +131,7 @@ export const useDashboard = () => {
 
     try {
       if (
+        latestMessage.topic === topics.subscribe.responseId ||
         latestMessage.topic === topics.subscribe.status ||
         latestMessage.topic === topics.subscribe.legacyStatus
       ) {
@@ -99,12 +140,7 @@ export const useDashboard = () => {
       }
 
       if (latestMessage.topic === topics.subscribe.error) {
-        setChargerError(
-          getMessageText(
-            latestMessage.message,
-            'The charger reported an error.',
-          ),
-        );
+        setChargerError(getChargerErrorText(latestMessage.message));
         publish(topics.publish.errorAck, mqttPayloads.errorAck()).catch(
           error => {
             console.warn(
@@ -212,8 +248,30 @@ export const useDashboard = () => {
   );
 
   const handleAlertsPress = useCallback(() => {
-    navigation.navigate(routes.app.alerts);
-  }, [navigation]);
+    const chargerAlerts = chargerError
+      ? chargerError
+          .split(',')
+          .map(alert => alert.trim())
+          .filter(Boolean)
+          .map((title, index) => ({
+            id: `charger-alert-${index}`,
+            title,
+          }))
+      : [];
+    const alerts = [
+      ...new Map(
+        [
+          ...chargerAlerts,
+          ...telemetry.activeFaults.map(fault => ({
+            id: fault,
+            title: FAULT_LABELS[fault],
+          })),
+        ].map(alert => [alert.title, alert]),
+      ).values(),
+    ];
+
+    navigation.navigate(routes.app.alerts, { alerts });
+  }, [chargerError, navigation, telemetry.activeFaults]);
 
   const handleSettingsPress = useCallback(() => {
     navigation.navigate(routes.app.settings);
