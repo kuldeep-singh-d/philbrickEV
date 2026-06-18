@@ -6,8 +6,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useDeviceDimensions, useMqtt, useSelector } from '@hooks';
 import { selectDeviceMqttTopic } from '@store/slices/devices/devices';
+import {
+  getMqttErrorDetails,
+  getMqttUserMessage,
+} from '../../../mqtt/mqttClient';
 import { createDeviceMqttTopics, mqttPayloads } from '../../../mqtt/mqttTopics';
-import { requestNotificationPermissionAndToken } from '../../../services/handleNotification';
 import { parseDashboardMessage } from './dashboardData';
 import useStyles from './styles';
 
@@ -72,10 +75,6 @@ export const useDashboard = () => {
   );
 
   useEffect(() => {
-    requestNotificationPermissionAndToken();
-  }, []);
-
-  useEffect(() => {
     setStatusMessage(null);
     setCommandFeedback('');
     setCommandFeedbackIsError(false);
@@ -90,37 +89,53 @@ export const useDashboard = () => {
       return;
     }
 
-    if (
-      latestMessage.topic === topics.subscribe.status ||
-      latestMessage.topic === topics.subscribe.legacyStatus
-    ) {
-      setStatusMessage(latestMessage.message);
-      return;
-    }
+    try {
+      if (
+        latestMessage.topic === topics.subscribe.status ||
+        latestMessage.topic === topics.subscribe.legacyStatus
+      ) {
+        setStatusMessage(latestMessage.message);
+        return;
+      }
 
-    if (latestMessage.topic === topics.subscribe.error) {
-      setChargerError(
-        getMessageText(latestMessage.message, 'The charger reported an error.'),
-      );
-      publish(topics.publish.errorAck, mqttPayloads.errorAck()).catch(
-        () => undefined,
-      );
-      return;
-    }
+      if (latestMessage.topic === topics.subscribe.error) {
+        setChargerError(
+          getMessageText(
+            latestMessage.message,
+            'The charger reported an error.',
+          ),
+        );
+        publish(topics.publish.errorAck, mqttPayloads.errorAck()).catch(
+          error => {
+            console.warn(
+              '[Dashboard MQTT] error ack publish failed',
+              getMqttErrorDetails(error),
+            );
+          },
+        );
+        return;
+      }
 
-    if (latestMessage.topic === topics.subscribe.remoteStartAck) {
-      setCommandFeedbackIsError(false);
-      setCommandFeedback(
-        getMessageText(latestMessage.message, 'Charging start acknowledged.'),
-      );
-      return;
-    }
+      if (latestMessage.topic === topics.subscribe.remoteStartAck) {
+        setCommandFeedbackIsError(false);
+        setCommandFeedback(
+          getMessageText(latestMessage.message, 'Charging start acknowledged.'),
+        );
+        return;
+      }
 
-    if (latestMessage.topic === topics.subscribe.remoteStopAck) {
-      setCommandFeedbackIsError(false);
-      setCommandFeedback(
-        getMessageText(latestMessage.message, 'Charging stop acknowledged.'),
-      );
+      if (latestMessage.topic === topics.subscribe.remoteStopAck) {
+        setCommandFeedbackIsError(false);
+        setCommandFeedback(
+          getMessageText(latestMessage.message, 'Charging stop acknowledged.'),
+        );
+      }
+    } catch (error) {
+      console.warn('[Dashboard MQTT] message handling failed', {
+        topic: latestMessage.topic,
+        payload: latestMessage.message,
+        error: getMqttErrorDetails(error),
+      });
     }
   }, [mqtt.latestMessage, publish, topics]);
 
@@ -142,13 +157,13 @@ export const useDashboard = () => {
 
     requestedDeviceRef.current = topics.deviceId;
     publish(topics.publish.requestId, mqttPayloads.requestId()).catch(error => {
+      console.warn(
+        '[Dashboard MQTT] request id publish failed',
+        getMqttErrorDetails(error),
+      );
       requestedDeviceRef.current = '';
       setCommandFeedbackIsError(true);
-      setCommandFeedback(
-        error instanceof Error
-          ? error.message
-          : 'Unable to request charger information.',
-      );
+      setCommandFeedback(getMqttUserMessage(error));
     });
   }, [mqtt.isConnected, publish, topics]);
 
@@ -158,7 +173,12 @@ export const useDashboard = () => {
       appStateRef.current = nextState;
 
       if (nextState === 'background') {
-        disconnect().catch(() => undefined);
+        disconnect().catch(error => {
+          console.warn(
+            '[Dashboard MQTT] background disconnect failed',
+            getMqttErrorDetails(error),
+          );
+        });
       } else if (
         nextState === 'active' &&
         previousState.match(/inactive|background/)
@@ -231,13 +251,13 @@ export const useDashboard = () => {
             : 'Charging stop request sent.',
         );
       } catch (error) {
+        console.warn(
+          '[Dashboard MQTT] charging command failed',
+          getMqttErrorDetails(error),
+        );
         setIsCharging(previousCharging);
         setCommandFeedbackIsError(true);
-        setCommandFeedback(
-          error instanceof Error
-            ? error.message
-            : 'Unable to update charging state.',
-        );
+        setCommandFeedback(getMqttUserMessage(error));
       } finally {
         setIsPublishingCommand(false);
       }
@@ -299,7 +319,8 @@ export const useDashboard = () => {
   const connectionError = !topics
     ? 'Select a charger to connect to live data.'
     : mqtt.status === 'error' && !mqtt.isInitializing
-    ? 'Unable to connect to the selected charger. Check your connection and try again.'
+    ? mqtt.error ||
+      'Unable to connect to the selected charger. Please try again.'
     : '';
   const connectionLabel = mqtt.isInitializing
     ? 'Connecting...'

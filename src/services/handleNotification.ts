@@ -27,6 +27,22 @@ export const NOTIFICATION_SMALL_ICON = 'ic_stat_philbrick_ev';
 
 let permissionRequest: Promise<string | null> | null = null;
 
+const getErrorMessage = (error: unknown) => {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (typeof error === 'string') {
+    return error;
+  }
+
+  return 'Unknown notification error';
+};
+
+const logNotificationWarning = (message: string, error: unknown) => {
+  console.warn(message, getErrorMessage(error));
+};
+
 const isPressEvent = ({ type }: Event) =>
   type === EventType.PRESS || type === EventType.ACTION_PRESS;
 
@@ -173,7 +189,10 @@ const requestPermissionAndFetchToken = async () => {
     console.log('FCM token:', token);
     return token;
   } catch (error) {
-    console.warn('Unable to initialize Firebase notifications:', error);
+    logNotificationWarning(
+      'Unable to initialize Firebase notifications:',
+      error,
+    );
     return null;
   }
 };
@@ -203,7 +222,10 @@ export const registerNotificationBackgroundHandlers = () => {
       },
     );
   } catch (error) {
-    console.warn('Unable to register the FCM background handler:', error);
+    logNotificationWarning(
+      'Unable to register the FCM background handler:',
+      error,
+    );
   }
 
   notifee.onBackgroundEvent(handleNotifeeEvent);
@@ -213,7 +235,7 @@ export const initializeNotificationListeners = () => {
   const unsubscribers: Array<() => void> = [];
 
   createNotificationChannel().catch(error => {
-    console.warn('Unable to create the notification channel:', error);
+    logNotificationWarning('Unable to create the notification channel:', error);
   });
 
   try {
@@ -230,7 +252,10 @@ export const initializeNotificationListeners = () => {
       }),
     );
   } catch (error) {
-    console.warn('Unable to register Firebase notification listeners:', error);
+    logNotificationWarning(
+      'Unable to register Firebase notification listeners:',
+      error,
+    );
   }
 
   unsubscribers.push(notifee.onForegroundEvent(handleNotifeeEvent));
@@ -244,7 +269,10 @@ export const initializeNotificationListeners = () => {
         }
       })
       .catch(error => {
-        console.warn('Unable to read the initial notification:', error);
+        logNotificationWarning(
+          'Unable to read the initial notification:',
+          error,
+        );
       });
   } else {
     try {
@@ -255,10 +283,16 @@ export const initializeNotificationListeners = () => {
           }
         })
         .catch(error => {
-          console.warn('Unable to read the initial FCM notification:', error);
+          logNotificationWarning(
+            'Unable to read the initial FCM notification:',
+            error,
+          );
         });
     } catch (error) {
-      console.warn('Unable to initialize iOS notification opening:', error);
+      logNotificationWarning(
+        'Unable to initialize iOS notification opening:',
+        error,
+      );
     }
   }
 

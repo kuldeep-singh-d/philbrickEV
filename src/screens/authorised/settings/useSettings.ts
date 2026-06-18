@@ -17,6 +17,10 @@ import { useDeviceDimensions, useDispatch, useMqtt, useSelector } from '@hooks';
 import { clearLogoutResponse, logout } from '@store/slices/auth/logout';
 import { selectDeviceMqttTopic } from '@store/slices/devices/devices';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  getMqttErrorDetails,
+  getMqttUserMessage,
+} from '../../../mqtt/mqttClient';
 import { createDeviceMqttTopics, mqttPayloads } from '../../../mqtt/mqttTopics';
 
 const MIN_CURRENT = 1;
@@ -103,11 +107,11 @@ export const useSettings = () => {
         );
         show.success(`Charging current set to ${nextCurrent} A.`);
       } catch (error) {
-        show.error(
-          error instanceof Error
-            ? error.message
-            : 'Unable to set charging current.',
+        console.warn(
+          '[Settings MQTT] set current publish failed',
+          getMqttErrorDetails(error),
         );
+        show.error(getMqttUserMessage(error));
       } finally {
         setIsSettingCurrent(false);
       }

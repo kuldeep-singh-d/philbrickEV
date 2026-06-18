@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Platform } from 'react-native';
-
 import { mqttConfig, type MqttConfig } from '../mqtt/mqttConfig';
 import {
   addMqttMessageListener,
+  getMqttErrorDetails,
+  getMqttUserMessage,
   publishMqttMessage,
   startMqttConnection,
   stopMqttConnection,
@@ -40,28 +40,10 @@ export interface UseMqttOptions {
   onMessage?: (message: MqttMessage) => void;
 }
 
-const LOG_PREFIX = '[MQTT hook]';
-
-const logMqtt = (label: string, payload?: unknown) => {
-  if (payload === undefined) {
-    console.log(Platform.OS, LOG_PREFIX, label);
-    return;
-  }
-
-  console.log(Platform.OS, LOG_PREFIX, label, payload);
-};
-
-const getErrorMessage = (error: unknown) => {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  if (typeof error === 'string') {
-    return error;
-  }
-
-  return 'MQTT request failed';
-};
+const getErrorPayload = (error: unknown) => ({
+  userMessage: getMqttUserMessage(error),
+  debug: getMqttErrorDetails(error),
+});
 
 const wait = (milliseconds: number) =>
   new Promise<void>(resolve => setTimeout(resolve, milliseconds));
@@ -122,7 +104,7 @@ export const useMqtt = ({
       } catch (connectionError) {
         if (mountedRef.current) {
           setStatus('error');
-          setError(getErrorMessage(connectionError));
+          setError(getMqttUserMessage(connectionError));
         }
 
         throw connectionError;
@@ -149,7 +131,7 @@ export const useMqtt = ({
     } catch (disconnectError) {
       if (mountedRef.current) {
         setStatus('error');
-        setError(getErrorMessage(disconnectError));
+        setError(getMqttUserMessage(disconnectError));
       }
 
       throw disconnectError;
@@ -180,7 +162,7 @@ export const useMqtt = ({
         return result;
       } catch (subscribeError) {
         if (mountedRef.current) {
-          setError(getErrorMessage(subscribeError));
+          setError(getMqttUserMessage(subscribeError));
         }
 
         throw subscribeError;
@@ -204,7 +186,7 @@ export const useMqtt = ({
       return result;
     } catch (subscribeError) {
       if (mountedRef.current) {
-        setError(getErrorMessage(subscribeError));
+        setError(getMqttUserMessage(subscribeError));
       }
 
       throw subscribeError;
@@ -233,7 +215,7 @@ export const useMqtt = ({
         return result;
       } catch (unsubscribeError) {
         if (mountedRef.current) {
-          setError(getErrorMessage(unsubscribeError));
+          setError(getMqttUserMessage(unsubscribeError));
         }
 
         throw unsubscribeError;
@@ -258,7 +240,7 @@ export const useMqtt = ({
       return result;
     } catch (unsubscribeError) {
       if (mountedRef.current) {
-        setError(getErrorMessage(unsubscribeError));
+        setError(getMqttUserMessage(unsubscribeError));
       }
 
       throw unsubscribeError;
@@ -274,7 +256,7 @@ export const useMqtt = ({
       } catch (publishError) {
         if (mountedRef.current) {
           setStatus('error');
-          setError(getErrorMessage(publishError));
+          setError(getMqttUserMessage(publishError));
         }
 
         throw publishError;
@@ -295,7 +277,11 @@ export const useMqtt = ({
         setLatestMessage(message);
       }
 
-      onMessageRef.current?.(message);
+      try {
+        onMessageRef.current?.(message);
+      } catch (error) {
+        console.warn('[MQTT] message callback failed', getErrorPayload(error));
+      }
     });
 
     return () => {
@@ -304,7 +290,10 @@ export const useMqtt = ({
 
       if (disconnectOnUnmount) {
         stopMqttConnection().catch(disconnectError => {
-          logMqtt('cleanup disconnect failed', disconnectError);
+          console.warn(
+            '[MQTT] cleanup disconnect failed',
+            getErrorPayload(disconnectError),
+          );
         });
       }
     };
@@ -362,14 +351,23 @@ export const useMqtt = ({
             mountedRef.current &&
             autoFlowIdRef.current === flowId
           ) {
+            console.warn('[MQTT] auto connection failed', {
+              flowId,
+              attempt: attempt + 1,
+              topics: normalizedAutoTopics,
+              error: getErrorPayload(autoConnectError),
+            });
             setStatus('error');
-            setError(getErrorMessage(autoConnectError));
+            setError(getMqttUserMessage(autoConnectError));
             setIsInitializing(false);
             return;
           }
 
           await stopMqttConnection().catch(disconnectError => {
-            logMqtt('retry disconnect failed', disconnectError);
+            console.warn(
+              '[MQTT] retry disconnect failed',
+              getErrorPayload(disconnectError),
+            );
           });
 
           if (retryDelayMs > 0) {
@@ -384,7 +382,10 @@ export const useMqtt = ({
     };
 
     runAutoFlow().catch(autoFlowError => {
-      logMqtt('auto connection flow failed', autoFlowError);
+      console.warn(
+        '[MQTT] auto connection flow failed',
+        getErrorPayload(autoFlowError),
+      );
     });
 
     return () => {
@@ -392,7 +393,10 @@ export const useMqtt = ({
 
       if (normalizedAutoTopics.length > 0) {
         unsubscribeMqttTopics(normalizedAutoTopics).catch(unsubscribeError => {
-          logMqtt('auto topic cleanup failed', unsubscribeError);
+          console.warn(
+            '[MQTT] auto topic cleanup failed',
+            getErrorPayload(unsubscribeError),
+          );
         });
       }
     };

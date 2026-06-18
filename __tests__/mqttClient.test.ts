@@ -1,5 +1,7 @@
 import { NativeModules, Platform } from 'react-native';
 import {
+  getMqttErrorDetails,
+  getMqttUserMessage,
   publishMqttMessage,
   startMqttConnection,
   stopMqttConnection,
@@ -135,6 +137,20 @@ describe('mqttClient', () => {
     expect(nativeModules.MqttClient?.connect).toHaveBeenCalledTimes(2);
   });
 
+  it('times out a stalled native connection attempt', async () => {
+    jest.useFakeTimers();
+    nativeModules.MqttClient?.connect.mockReturnValue(new Promise(() => {}));
+
+    const connection = startMqttConnection(enabledConfig);
+
+    jest.advanceTimersByTime(18_000);
+
+    await expect(connection).rejects.toThrow(
+      'MQTT connection timed out after 18s',
+    );
+    expect(nativeModules.MqttClient?.connect).toHaveBeenCalledTimes(1);
+  });
+
   it('disconnects through the native MQTT bridge', async () => {
     await expect(stopMqttConnection()).resolves.toEqual({ connected: false });
 
@@ -217,6 +233,30 @@ describe('mqttClient', () => {
     expect(nativeModules.MqttClient?.subscribe).toHaveBeenCalledTimes(2);
     expect(nativeModules.MqttClient?.subscribe).toHaveBeenNthCalledWith(2, {
       topic: 'DEV-002',
+    });
+  });
+
+  it('adds user-safe copy and topic context to subscription failures', async () => {
+    nativeModules.MqttClient?.subscribe.mockRejectedValueOnce(
+      new Error('socket closed'),
+    );
+
+    let capturedError: unknown;
+    try {
+      await subscribeMqttTopic('DEV-001');
+    } catch (error) {
+      capturedError = error;
+    }
+
+    expect(getMqttUserMessage(capturedError)).toBe(
+      'Connected to the charger, but live updates could not be started. Please try again.',
+    );
+    expect(getMqttErrorDetails(capturedError)).toEqual({
+      operation: 'subscribe',
+      topic: 'DEV-001',
+      message: 'MQTT subscribe failed topic="DEV-001": socket closed',
+      userMessage:
+        'Connected to the charger, but live updates could not be started. Please try again.',
     });
   });
 

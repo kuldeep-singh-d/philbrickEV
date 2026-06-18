@@ -11,6 +11,39 @@ export type MqttMessage = {
   message: string;
 };
 
+export type MqttOperation =
+  | 'connect'
+  | 'disconnect'
+  | 'publish'
+  | 'subscribe'
+  | 'unsubscribe';
+
+export class MqttOperationError extends Error {
+  operation: MqttOperation;
+  topic?: string;
+  userMessage: string;
+  originalMessage: string;
+
+  constructor({
+    operation,
+    topic,
+    message,
+    userMessage,
+  }: {
+    operation: MqttOperation;
+    topic?: string;
+    message: string;
+    userMessage: string;
+  }) {
+    super(message);
+    this.name = 'MqttOperationError';
+    this.operation = operation;
+    this.topic = topic;
+    this.userMessage = userMessage;
+    this.originalMessage = message;
+  }
+}
+
 type NativeMqttClient = {
   connect(
     options: MqttConfig,
@@ -29,6 +62,16 @@ type NativeMqttClient = {
 };
 
 const MQTT_MESSAGE_EVENT = 'MqttMessageReceived';
+const MQTT_CONNECT_TIMEOUT_MS = 18_000;
+const MQTT_USER_MESSAGES: Record<MqttOperation, string> = {
+  connect:
+    'Unable to connect to your charger right now. Please check your internet connection and try again.',
+  disconnect: 'Unable to close the charger connection. Please try again.',
+  publish: 'Unable to send your request to the charger. Please try again.',
+  subscribe:
+    'Connected to the charger, but live updates could not be started. Please try again.',
+  unsubscribe: 'Unable to update charger live updates. Please try again.',
+};
 
 let connectPromise: Promise<{ connected: boolean; clientId?: string }> | null =
   null;
@@ -47,9 +90,7 @@ function clearActiveConnectionState() {
 }
 
 function getNativeMqttClient(): NativeMqttClient | undefined {
-  //// console.log('[MQTT] Reading NativeModules.MqttClient');
   const mqttClient = NativeModules.MqttClient as NativeMqttClient | undefined;
-  //// console.log('[MQTT] NativeModules.MqttClient value', mqttClient);
   return mqttClient;
 }
 
@@ -91,6 +132,26 @@ function enqueueSubscription<T>(operation: () => Promise<T>): Promise<T> {
   return result;
 }
 
+function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  message: string,
+): Promise<T> {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeout = setTimeout(() => {
+      reject(new Error(message));
+    }, timeoutMs);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+  });
+}
+
 function requireTopic(topic: string, action: string) {
   const normalizedTopic = topic.trim();
 
@@ -101,17 +162,100 @@ function requireTopic(topic: string, action: string) {
   return normalizedTopic;
 }
 
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (typeof error === 'string') {
+    return error;
+  }
+
+  return 'Unknown MQTT error';
+}
+
+export function getMqttUserMessage(error: unknown) {
+  if (error instanceof MqttOperationError) {
+    return error.userMessage;
+  }
+
+  return 'Unable to connect to the selected charger. Please try again.';
+}
+
+export function getMqttErrorDetails(error: unknown) {
+  if (error instanceof MqttOperationError) {
+    return {
+      operation: error.operation,
+      topic: error.topic,
+      message: error.originalMessage,
+      userMessage: error.userMessage,
+    };
+  }
+
+  return {
+    message: getErrorMessage(error),
+    userMessage: getMqttUserMessage(error),
+  };
+}
+
+function createOperationError(
+  operation: MqttOperation,
+  error: unknown,
+  topic?: string,
+) {
+  if (error instanceof MqttOperationError) {
+    return error;
+  }
+
+  const reason = getErrorMessage(error);
+  const context = topic ? ` topic="${topic}"` : '';
+
+  return new MqttOperationError({
+    operation,
+    topic,
+    message: `MQTT ${operation} failed${context}: ${reason}`,
+    userMessage: MQTT_USER_MESSAGES[operation],
+  });
+}
+
+function normalizeMqttMessage(event: unknown): MqttMessage | null {
+  if (!event || typeof event !== 'object') {
+    console.warn('[MQTT] invalid message event', event);
+    return null;
+  }
+
+  const { topic, message } = event as Partial<MqttMessage>;
+
+  if (typeof topic !== 'string' || !topic.trim()) {
+    console.warn('[MQTT] message ignored because topic is invalid', event);
+    return null;
+  }
+
+  if (typeof message !== 'string') {
+    console.warn('[MQTT] message ignored because payload is invalid', {
+      topic,
+      message,
+    });
+    return null;
+  }
+
+  return {
+    topic,
+    message,
+  };
+}
+
 export function startMqttConnection(
   config: MqttConfig = mqttConfig,
 ): Promise<
   | { connected: boolean; clientId?: string }
   | { connected: false; skipped: true }
 > {
-  //// console.log('[MQTT] startMqttConnection called');
   if (!config.enabled || !config.host) {
-    //// console.log('[MQTT] Connection skipped');
-    //// console.log('[MQTT] Skip reason enabled', config.enabled);
-    //// console.log('[MQTT] Skip reason host exists', Boolean(config.host));
+    console.log('[MQTT] connection skipped', {
+      enabled: config.enabled,
+      hasHost: Boolean(config.host),
+    });
     return Promise.resolve({ connected: false, skipped: true });
   }
 
@@ -119,14 +263,15 @@ export function startMqttConnection(
     return disconnectPromise.then(() => startMqttConnection(config));
   }
 
-  //// console.log('[MQTT] Getting native MQTT client');
   const mqttClient = getNativeMqttClient();
-  //console.log('[MQTT] Native MQTT client found', Boolean(mqttClient));
 
   if (!mqttClient) {
     console.warn('[MQTT] Native MQTT module is not available', Platform.OS);
     return Promise.reject(
-      new Error(`MQTT native module is not available on ${Platform.OS}`),
+      createOperationError(
+        'connect',
+        new Error(`MQTT native module is not available on ${Platform.OS}`),
+      ),
     );
   }
 
@@ -137,16 +282,23 @@ export function startMqttConnection(
   }
 
   if (!connectPromise) {
-    //console.log('[MQTT] No active connect promise; creating connection');
     const connectionConfig = {
       ...config,
       clientId: createMqttClientId(),
     };
-    console.log(Platform.OS, 'MQTT client id', connectionConfig.clientId);
-    connectPromise = mqttClient
-      .connect(connectionConfig)
+    console.log('[MQTT] connecting', {
+      platform: Platform.OS,
+      host: connectionConfig.host,
+      port: connectionConfig.port,
+      clientId: connectionConfig.clientId,
+    });
+    connectPromise = withTimeout(
+      mqttClient.connect(connectionConfig),
+      MQTT_CONNECT_TIMEOUT_MS,
+      `MQTT connection timed out after ${MQTT_CONNECT_TIMEOUT_MS / 1000}s`,
+    )
       .then(result => {
-        //console.log('[MQTT] Native connect resolved', result);
+        console.log('[MQTT] connected', result);
         connectPromise = null;
         activeConnection = result.connected ? result : undefined;
         activeConnectionKey = result.connected ? connectionKey : '';
@@ -154,17 +306,17 @@ export function startMqttConnection(
         return result;
       })
       .catch(error => {
-        console.warn('[MQTT] Native connect failed', error);
-        //console.log('[MQTT] Clearing connect promise after failure');
+        const connectionError = createOperationError('connect', error);
+        console.warn(
+          '[MQTT] native connect failed',
+          getMqttErrorDetails(connectionError),
+        );
         connectPromise = null;
         clearActiveConnectionState();
-        throw error;
+        throw connectionError;
       });
-  } else {
-    //console.log('[MQTT] Reusing existing connect promise');
   }
 
-  //console.log('[MQTT] Returning connect promise');
   return connectPromise;
 }
 
@@ -175,29 +327,20 @@ export function stopMqttConnection(): Promise<
     return disconnectPromise;
   }
 
-  //console.log('[MQTT] stopMqttConnection called');
   const pendingConnection = connectPromise;
   const operation = enqueueSubscription(async () => {
     if (pendingConnection) {
       await pendingConnection.catch(() => undefined);
     }
 
-    //console.log('[MQTT] Getting native MQTT client for disconnect');
     const mqttClient = getNativeMqttClient();
-    console.log(
-      '[MQTT] Native MQTT client found for disconnect',
-      Boolean(mqttClient),
-    );
 
     try {
       if (!mqttClient) {
-        //console.log('[MQTT] Disconnect skipped because native module is missing');
         return { connected: false as const, skipped: true as const };
       }
 
-      //console.log('[MQTT] Calling native disconnect');
       const result = await mqttClient.disconnect();
-      //console.log('[MQTT] Native disconnect resolved', result);
       return result;
     } finally {
       connectPromise = null;
@@ -220,7 +363,11 @@ export function publishMqttMessage(
   if (!mqttClient) {
     console.warn('[MQTT] Native MQTT module is not available', Platform.OS);
     return Promise.reject(
-      new Error(`MQTT native module is not available on ${Platform.OS}`),
+      createOperationError(
+        'publish',
+        new Error(`MQTT native module is not available on ${Platform.OS}`),
+        topic,
+      ),
     );
   }
 
@@ -231,16 +378,21 @@ export function publishMqttMessage(
       Object.keys(mqttClient),
     );
     return Promise.reject(
-      new Error(
-        `MQTT native publish method is not available on ${Platform.OS}. Rebuild and reinstall the app.`,
+      createOperationError(
+        'publish',
+        new Error(
+          `MQTT native publish method is not available on ${Platform.OS}. Rebuild and reinstall the app.`,
+        ),
+        topic,
       ),
     );
   }
 
-  console.log(Platform.OS, 'MQTT publish request', { topic, message });
   return mqttClient.publish({ topic, message }).catch(error => {
+    const publishError = createOperationError('publish', error, topic);
+    console.warn('[MQTT] publish failed', getMqttErrorDetails(publishError));
     clearActiveConnectionState();
-    throw error;
+    throw publishError;
   });
 }
 
@@ -253,7 +405,11 @@ export function subscribeMqttTopic(
 
     if (!mqttClient) {
       console.warn('[MQTT] Native MQTT module is not available', Platform.OS);
-      throw new Error(`MQTT native module is not available on ${Platform.OS}`);
+      throw createOperationError(
+        'subscribe',
+        new Error(`MQTT native module is not available on ${Platform.OS}`),
+        normalizedTopic,
+      );
     }
 
     if (typeof mqttClient.subscribe !== 'function') {
@@ -262,8 +418,12 @@ export function subscribeMqttTopic(
         Platform.OS,
         Object.keys(mqttClient),
       );
-      throw new Error(
-        `MQTT native subscribe method is not available on ${Platform.OS}. Rebuild and reinstall the app.`,
+      throw createOperationError(
+        'subscribe',
+        new Error(
+          `MQTT native subscribe method is not available on ${Platform.OS}. Rebuild and reinstall the app.`,
+        ),
+        normalizedTopic,
       );
     }
 
@@ -271,12 +431,22 @@ export function subscribeMqttTopic(
       return { subscribed: true, topic: normalizedTopic };
     }
 
-    console.log(Platform.OS, 'MQTT subscribe request', {
-      topic: normalizedTopic,
-    });
-    const result = await mqttClient.subscribe({ topic: normalizedTopic });
-    activeSubscribedTopics.add(result.topic);
-    return result;
+    try {
+      const result = await mqttClient.subscribe({ topic: normalizedTopic });
+      activeSubscribedTopics.add(result.topic);
+      return result;
+    } catch (error) {
+      const subscribeError = createOperationError(
+        'subscribe',
+        error,
+        normalizedTopic,
+      );
+      console.warn(
+        '[MQTT] subscribe failed',
+        getMqttErrorDetails(subscribeError),
+      );
+      throw subscribeError;
+    }
   });
 }
 
@@ -303,7 +473,11 @@ export function unsubscribeMqttTopic(
 
     if (!mqttClient) {
       console.warn('[MQTT] Native MQTT module is not available', Platform.OS);
-      throw new Error(`MQTT native module is not available on ${Platform.OS}`);
+      throw createOperationError(
+        'unsubscribe',
+        new Error(`MQTT native module is not available on ${Platform.OS}`),
+        normalizedTopic,
+      );
     }
 
     if (!activeSubscribedTopics.has(normalizedTopic)) {
@@ -316,17 +490,31 @@ export function unsubscribeMqttTopic(
         Platform.OS,
         Object.keys(mqttClient),
       );
-      throw new Error(
-        `MQTT native unsubscribe method is not available on ${Platform.OS}. Rebuild and reinstall the app.`,
+      throw createOperationError(
+        'unsubscribe',
+        new Error(
+          `MQTT native unsubscribe method is not available on ${Platform.OS}. Rebuild and reinstall the app.`,
+        ),
+        normalizedTopic,
       );
     }
 
-    console.log(Platform.OS, 'MQTT unsubscribe request', {
-      topic: normalizedTopic,
-    });
-    const result = await mqttClient.unsubscribe({ topic: normalizedTopic });
-    activeSubscribedTopics.delete(normalizedTopic);
-    return result;
+    try {
+      const result = await mqttClient.unsubscribe({ topic: normalizedTopic });
+      activeSubscribedTopics.delete(normalizedTopic);
+      return result;
+    } catch (error) {
+      const unsubscribeError = createOperationError(
+        'unsubscribe',
+        error,
+        normalizedTopic,
+      );
+      console.warn(
+        '[MQTT] unsubscribe failed',
+        getMqttErrorDetails(unsubscribeError),
+      );
+      throw unsubscribeError;
+    }
   });
 }
 
@@ -347,5 +535,22 @@ export async function unsubscribeMqttTopics(
 export function addMqttMessageListener(
   listener: (message: MqttMessage) => void,
 ): EmitterSubscription {
-  return DeviceEventEmitter.addListener(MQTT_MESSAGE_EVENT, listener);
+  return DeviceEventEmitter.addListener(MQTT_MESSAGE_EVENT, event => {
+    const message = normalizeMqttMessage(event);
+
+    if (!message) {
+      return;
+    }
+
+    console.log('[MQTT] received', {
+      topic: message.topic,
+      message: message.message,
+    });
+
+    try {
+      listener(message);
+    } catch (error) {
+      console.warn('[MQTT] message listener failed', getErrorMessage(error));
+    }
+  });
 }

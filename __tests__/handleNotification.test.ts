@@ -65,12 +65,26 @@ describe('notification handling', () => {
     expect(getToken).toHaveBeenCalledTimes(1);
   });
 
+  it('handles Firebase token failures without throwing native error objects', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    (getToken as jest.Mock).mockRejectedValueOnce(
+      new Error('SERVICE_NOT_AVAILABLE'),
+    );
+
+    await expect(requestNotificationPermissionAndToken()).resolves.toBeNull();
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      'Unable to initialize Firebase notifications:',
+      'SERVICE_NOT_AVAILABLE',
+    );
+    warnSpy.mockRestore();
+  });
+
   it('only renders data-only messages in the background', async () => {
     registerNotificationBackgroundHandlers();
 
-    const backgroundHandler = (
-      setBackgroundMessageHandler as jest.Mock
-    ).mock.calls[0][1];
+    const backgroundHandler = (setBackgroundMessageHandler as jest.Mock).mock
+      .calls[0][1];
 
     await backgroundHandler({
       messageId: 'system-rendered',

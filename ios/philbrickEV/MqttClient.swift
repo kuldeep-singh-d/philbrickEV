@@ -89,9 +89,11 @@ class MqttClient: RCTEventEmitter {
         self.inputStream = streams.input
         self.outputStream = streams.output
         self.startKeepAlive(output: streams.output, keepAliveSeconds: keepAliveSeconds)
+        self.log("MQTT connection established clientId=\(clientId)")
         resolve(["connected": true, "clientId": clientId])
       } catch {
         self.disconnectStreams()
+        self.log("MQTT connection failed: \(error.localizedDescription)")
         reject("MQTT_CONNECT_FAILED", error.localizedDescription, error)
       }
     }
@@ -223,8 +225,6 @@ class MqttClient: RCTEventEmitter {
     guard !caCertificates.isEmpty else {
       throw MqttError.certificate("No CA certificate was found in \(certificateName)")
     }
-    self.log("Loaded \(caCertificates.count) certificate(s) from \(certificateName)")
-
     return MqttTlsIdentity(
       identity: importedIdentity as! SecIdentity,
       caCertificates: caCertificates
@@ -306,8 +306,6 @@ class MqttClient: RCTEventEmitter {
       )
     }
 
-    let certificateName = SecCertificateCopySubjectSummary(leafCertificate) as String? ?? host
-    log("Validated MQTT server certificate \(certificateName) for \(host) with bundled CA")
   }
 
   private func disconnectStreams() {
@@ -408,12 +406,8 @@ class MqttClient: RCTEventEmitter {
           switch fixedHeader & 0xF0 {
           case 0x30:
             try self.handlePublishPacket(fixedHeader: fixedHeader, packet: packet)
-          case 0x90:
-            self.log("MQTT SUBACK received")
-          case 0xB0:
-            self.log("MQTT UNSUBACK received")
-          case 0xD0:
-            self.log("MQTT PINGRESP received")
+          case 0x90, 0xB0, 0xD0:
+            break
           default:
             self.log("MQTT packet ignored type=\(fixedHeader & 0xF0)")
           }
@@ -445,7 +439,6 @@ class MqttClient: RCTEventEmitter {
 
       do {
         try self.write([0xC0, 0x00], to: output)
-        self.log("MQTT PINGREQ sent")
       } catch {
         self.log("MQTT keepalive failed: \(error.localizedDescription)")
         self.disconnectStreams()

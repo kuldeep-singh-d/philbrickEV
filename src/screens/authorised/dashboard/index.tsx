@@ -158,6 +158,7 @@ export const Dashboard = () => {
             <AppText
               medium
               centered
+              numberOfLines={3}
               label={dashboard.connectionError}
               style={styles.connectionErrorText}
             />

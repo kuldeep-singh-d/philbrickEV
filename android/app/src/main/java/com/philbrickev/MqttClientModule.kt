@@ -12,6 +12,7 @@ import java.io.DataOutputStream
 import java.io.FileNotFoundException
 import java.io.InputStream
 import java.net.InetSocketAddress
+import java.net.Socket
 import java.net.SocketTimeoutException
 import java.security.KeyStore
 import java.security.cert.Certificate
@@ -48,9 +49,7 @@ class MqttClientModule(private val reactContext: ReactApplicationContext) :
   fun connect(options: ReadableMap, promise: Promise) {
     executor.execute {
       try {
-        log("connect called")
         disconnectSocket()
-        log("Previous socket disconnected")
 
         val host = options.getString("host") ?: error("Missing MQTT host")
         val port = if (options.hasKey("port")) options.getInt("port") else 8883
@@ -65,8 +64,7 @@ class MqttClientModule(private val reactContext: ReactApplicationContext) :
         val certificateName =
           certificate.getString("certificateName") ?: error("Missing certificateName")
         val certificatePassword = certificate.getString("certificatePassword") ?: ""
-        log("Parsed options host=$host port=$port clientId=$clientId")
-        log("Using certificate asset $certificateName")
+        log("Connecting host=$host port=$port clientId=$clientId")
 
         val sslSocket = createSslSocket(
           certificateName = certificateName,
@@ -74,7 +72,6 @@ class MqttClientModule(private val reactContext: ReactApplicationContext) :
           host = host,
           port = port,
         )
-        log("TLS socket created")
         val connectPacket = buildConnectPacket(
           clientId = clientId,
           cleanSession = cleanSession,
@@ -82,28 +79,23 @@ class MqttClientModule(private val reactContext: ReactApplicationContext) :
           username = username,
           password = password,
         )
-        log("MQTT CONNECT packet built")
 
         sslSocket.outputStream.write(connectPacket)
         sslSocket.outputStream.flush()
-        log("MQTT CONNECT packet sent")
 
         val input = sslSocket.inputStream
         val packetType = input.read()
-        log("MQTT CONNACK packet type=$packetType")
         if (packetType != 0x20) {
           error("Unexpected MQTT CONNACK header: $packetType")
         }
 
         val remainingLength = readRemainingLength(input::read)
-        log("MQTT CONNACK remainingLength=$remainingLength")
         if (remainingLength < 2) {
           error("Invalid MQTT CONNACK length: $remainingLength")
         }
 
         val ackFlags = input.read()
         val returnCode = input.read()
-        log("MQTT CONNACK ackFlags=$ackFlags returnCode=$returnCode")
         if (ackFlags < 0 || returnCode < 0) {
           error("MQTT CONNACK ended unexpectedly")
         }
@@ -128,14 +120,11 @@ class MqttClientModule(private val reactContext: ReactApplicationContext) :
   fun disconnect(promise: Promise) {
     executor.execute {
       try {
-        log("disconnect called")
         socket?.outputStream?.write(byteArrayOf(0xE0.toByte(), 0x00))
         socket?.outputStream?.flush()
-        log("MQTT DISCONNECT packet sent")
       } catch (_: Throwable) {
       } finally {
         disconnectSocket()
-        log("Socket disconnected")
         promise.resolve(connectionResult(false))
       }
     }
@@ -145,7 +134,6 @@ class MqttClientModule(private val reactContext: ReactApplicationContext) :
   fun publish(options: ReadableMap, promise: Promise) {
     executor.execute {
       try {
-        log("publish called")
         val activeSocket = socket ?: error("MQTT is not connected")
         val topic = options.getString("topic")?.takeUnless { it.isBlank() }
           ?: error("Missing MQTT publish topic")
@@ -174,7 +162,6 @@ class MqttClientModule(private val reactContext: ReactApplicationContext) :
   fun subscribe(options: ReadableMap, promise: Promise) {
     executor.execute {
       try {
-        log("subscribe called")
         val activeSocket = socket ?: error("MQTT is not connected")
         val topic = options.getString("topic")?.takeUnless { it.isBlank() }
           ?: error("Missing MQTT subscribe topic")
@@ -206,7 +193,6 @@ class MqttClientModule(private val reactContext: ReactApplicationContext) :
   fun unsubscribe(options: ReadableMap, promise: Promise) {
     executor.execute {
       try {
-        log("unsubscribe called")
         val activeSocket = socket ?: error("MQTT is not connected")
         val topic = options.getString("topic")?.takeUnless { it.isBlank() }
           ?: error("Missing MQTT unsubscribe topic")
@@ -245,31 +231,26 @@ class MqttClientModule(private val reactContext: ReactApplicationContext) :
     host: String,
     port: Int,
   ): SSLSocket {
-    log("Loading PKCS#12 asset $certificateName")
     val keyStore = KeyStore.getInstance("PKCS12")
     openAsset(certificateName).use { stream ->
-      log("PKCS#12 asset opened")
       keyStore.load(stream, certificatePassword.toCharArray())
-      log("PKCS#12 key store loaded")
     }
 
     val keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm())
     keyManagerFactory.init(keyStore, certificatePassword.toCharArray())
-    log("KeyManagerFactory initialized")
 
     val trustManagers = createTrustManagers(keyStore)
 
     val sslContext = SSLContext.getInstance("TLS")
     sslContext.init(keyManagerFactory.keyManagers, trustManagers, null)
-    log("SSLContext initialized")
 
-    val sslSocket = sslContext.socketFactory.createSocket() as SSLSocket
+    val rawSocket = Socket()
+    rawSocket.soTimeout = SOCKET_TIMEOUT_MS
+    rawSocket.connect(InetSocketAddress(host, port), SOCKET_TIMEOUT_MS)
+
+    val sslSocket = sslContext.socketFactory.createSocket(rawSocket, host, port, true) as SSLSocket
     sslSocket.soTimeout = SOCKET_TIMEOUT_MS
-    log("Connecting TLS socket to $host:$port")
-    sslSocket.connect(InetSocketAddress(host, port), SOCKET_TIMEOUT_MS)
-    log("Starting TLS handshake")
     sslSocket.startHandshake()
-    log("TLS handshake completed")
     return sslSocket
   }
 
@@ -291,11 +272,9 @@ class MqttClientModule(private val reactContext: ReactApplicationContext) :
     }
 
     if (trustedCertificates.isEmpty()) {
-      log("No CA certificates found in PKCS#12 asset; using Android default trust store")
       return null
     }
 
-    log("Pinned trust manager initialized with ${trustedCertificates.size} CA certificate(s)")
     return arrayOf(PinnedCaTrustManager(trustedCertificates.toTypedArray()))
   }
 
@@ -463,9 +442,9 @@ class MqttClientModule(private val reactContext: ReactApplicationContext) :
           val packet = readExact(input, remainingLength)
           when (fixedHeader and 0xF0) {
             0x30 -> handlePublishPacket(fixedHeader, packet)
-            0x90 -> log("MQTT SUBACK received")
-            0xB0 -> log("MQTT UNSUBACK received")
-            0xD0 -> log("MQTT PINGRESP received")
+            0x90 -> Unit
+            0xB0 -> Unit
+            0xD0 -> Unit
             else -> log("MQTT packet ignored type=${fixedHeader and 0xF0}")
           }
         } catch (_: SocketTimeoutException) {
@@ -498,7 +477,6 @@ class MqttClientModule(private val reactContext: ReactApplicationContext) :
           try {
             activeSocket.outputStream.write(byteArrayOf(0xC0.toByte(), 0x00))
             activeSocket.outputStream.flush()
-            log("MQTT PINGREQ sent")
           } catch (error: Throwable) {
             log("MQTT keepalive failed: ${error.javaClass.simpleName}: ${error.message}")
             disconnectSocket()
@@ -536,15 +514,24 @@ class MqttClientModule(private val reactContext: ReactApplicationContext) :
   }
 
   private fun emitMessage(topic: String, message: String) {
-    reactContext
-      .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
-      .emit(
-        "MqttMessageReceived",
-        Arguments.createMap().apply {
-          putString("topic", topic)
-          putString("message", message)
-        },
-      )
+    try {
+      if (!reactContext.hasActiveReactInstance()) {
+        log("MQTT message dropped because React context is inactive topic=$topic")
+        return
+      }
+
+      reactContext
+        .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+        .emit(
+          "MqttMessageReceived",
+          Arguments.createMap().apply {
+            putString("topic", topic)
+            putString("message", message)
+          },
+        )
+    } catch (error: Throwable) {
+      log("MQTT message emit failed: ${error.javaClass.simpleName}: ${error.message}")
+    }
   }
 
   private fun readExact(input: InputStream, length: Int): ByteArray {
