@@ -42,6 +42,7 @@ export const FAULT_LABELS: Record<FaultName, string> = {
 export interface DashboardTelemetry {
   cpStatus?: number;
   cpStatusText: string;
+  auth?: number;
   power: number;
   temperature?: number;
   setCurrent?: number;
@@ -51,6 +52,11 @@ export interface DashboardTelemetry {
   phases: Record<PhaseName, { voltage: number; current: number }>;
   faultStatus: number;
   activeFaults: FaultName[];
+}
+
+export interface DashboardPhaseParameters {
+  phases: DashboardTelemetry['phases'];
+  visiblePhaseNames: PhaseName[];
 }
 
 const getNumber = (
@@ -89,6 +95,80 @@ const getString = (
   }
 
   return undefined;
+};
+
+const parseMessageSource = (message?: string | null): UnknownRecord => {
+  if (!message) {
+    return {};
+  }
+
+  try {
+    const parsed = JSON.parse(message);
+
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? (parsed as UnknownRecord)
+      : {};
+  } catch {
+    return {};
+  }
+};
+
+const getPhaseValues = (
+  source: UnknownRecord,
+  fallback?: DashboardTelemetry['phases'],
+) => ({
+  R: {
+    voltage:
+      getNumber(source, ['votlageR', 'voltageR', 'voltage_r']) ??
+      fallback?.R.voltage ??
+      0,
+    current:
+      getNumber(source, ['currentR', 'current_r']) ?? fallback?.R.current ?? 0,
+  },
+  Y: {
+    voltage:
+      getNumber(source, ['votlageY', 'voltageY', 'voltage_y']) ??
+      fallback?.Y.voltage ??
+      0,
+    current:
+      getNumber(source, ['currentY', 'current_y']) ?? fallback?.Y.current ?? 0,
+  },
+  B: {
+    voltage:
+      getNumber(source, ['votlageB', 'voltageB', 'voltage_b']) ??
+      fallback?.B.voltage ??
+      0,
+    current:
+      getNumber(source, ['currentB', 'current_b']) ?? fallback?.B.current ?? 0,
+  },
+});
+
+const PHASE_KEYS: Record<PhaseName, string[]> = {
+  R: ['votlageR', 'voltageR', 'voltage_r', 'currentR', 'current_r'],
+  Y: ['votlageY', 'voltageY', 'voltage_y', 'currentY', 'current_y'],
+  B: ['votlageB', 'voltageB', 'voltage_b', 'currentB', 'current_b'],
+};
+
+export const parsePhaseParametersMessage = (
+  message?: string | null,
+  fallbackPhases?: DashboardTelemetry['phases'],
+): DashboardPhaseParameters => {
+  const source = parseMessageSource(message);
+  const phases = getPhaseValues(source, fallbackPhases);
+  const phasesIncludedInResponse = PHASE_NAMES.filter(phase =>
+    PHASE_KEYS[phase].some(key =>
+      Object.prototype.hasOwnProperty.call(source, key),
+    ),
+  );
+  const responseCapacity = getNumber(source, ['evsecap']);
+  const visiblePhaseNames =
+    phasesIncludedInResponse.length > 0
+      ? phasesIncludedInResponse
+      : responseCapacity === 0 || responseCapacity === 1
+      ? (['R'] as PhaseName[])
+      : [...PHASE_NAMES];
+
+  return { phases, visiblePhaseNames };
 };
 
 export const getCpStatusString = (cp?: number) => {
@@ -152,29 +232,8 @@ export const parseDashboardMessage = (
   message?: string | null,
   device?: UnknownRecord | null,
 ): DashboardTelemetry => {
-  let source: UnknownRecord = {};
-
-  if (message) {
-    try {
-      const parsed = JSON.parse(message);
-
-      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-        source = parsed as UnknownRecord;
-      }
-    } catch {
-      source = {};
-    }
-  }
-
-  const redVoltage =
-    getNumber(source, ['votlageR', 'voltageR', 'voltage_r']) ?? 0;
-  const yellowVoltage =
-    getNumber(source, ['votlageY', 'voltageY', 'voltage_y']) ?? 0;
-  const blueVoltage =
-    getNumber(source, ['votlageB', 'voltageB', 'voltage_b']) ?? 0;
-  const redCurrent = getNumber(source, ['currentR', 'current_r']) ?? 0;
-  const yellowCurrent = getNumber(source, ['currentY', 'current_y']) ?? 0;
-  const blueCurrent = getNumber(source, ['currentB', 'current_b']) ?? 0;
+  const source = parseMessageSource(message);
+  const phases = getPhaseValues(source);
   const cpStatus = getNumber(source, ['cp_stat', 'cpStatus', 'cp_status']);
   const capacity =
     getNumber(source, ['evse_capacity', 'evseCapacity', 'capacity']) ??
@@ -189,6 +248,7 @@ export const parseDashboardMessage = (
   return {
     cpStatus,
     cpStatusText: getCpStatusString(cpStatus),
+    auth: getNumber(source, ['auth']),
     power: getNumber(source, ['power', 'power_kw', 'powerKw']) ?? 0,
     temperature: getNumber(source, ['temperature', 'temp']),
     setCurrent: getNumber(source, [
@@ -197,14 +257,10 @@ export const parseDashboardMessage = (
       'set_current',
     ]),
     voltage:
-      getNumber(source, ['voltage', 'averageVoltage']) ?? redVoltage ?? 0,
+      getNumber(source, ['voltage', 'averageVoltage']) ?? phases.R.voltage,
     duration: formatDuration(duration),
     evseCapacityText: getEvseCapacityText(capacity),
-    phases: {
-      R: { voltage: redVoltage, current: redCurrent },
-      Y: { voltage: yellowVoltage, current: yellowCurrent },
-      B: { voltage: blueVoltage, current: blueCurrent },
-    },
+    phases,
     faultStatus,
     activeFaults: getActiveFaults(faultStatus),
   };

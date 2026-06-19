@@ -1,5 +1,5 @@
 import { routes } from '@routes';
-import { useNavigation } from '@react-navigation/native';
+import { useIsFocused, useNavigation } from '@react-navigation/native';
 import { AppState, LayoutChangeEvent, type AppStateStatus } from 'react-native';
 import { Gesture } from 'react-native-gesture-handler';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -18,6 +18,7 @@ import {
   getActiveFaults,
   formatDuration,
   parseDashboardMessage,
+  parsePhaseParametersMessage,
 } from './dashboardData';
 import useStyles from './styles';
 
@@ -83,6 +84,7 @@ export const useDashboard = () => {
   const styles = useStyles();
   const dispatch = useDispatch();
   const navigation: any = useNavigation();
+  const isFocused = useIsFocused();
   const { moderateWidth } = useDeviceDimensions();
   const selectedDevice = useSelector(state => state.selectedDevice.data);
   const selectedDeviceId = selectDeviceMqttTopic(selectedDevice);
@@ -107,6 +109,9 @@ export const useDashboard = () => {
   const { disconnect, publish, retry } = mqtt;
 
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [responseIdMessage, setResponseIdMessage] = useState<string | null>(
+    null,
+  );
   const [isCharging, setIsCharging] = useState(false);
   const [isSwiping, setIsSwiping] = useState(false);
   const [swipePosition, setSwipePosition] = useState(0);
@@ -133,9 +138,14 @@ export const useDashboard = () => {
       ),
     [selectedDevice, statusMessage],
   );
+  const phaseParameters = useMemo(
+    () => parsePhaseParametersMessage(responseIdMessage, telemetry.phases),
+    [responseIdMessage, telemetry.phases],
+  );
 
   useEffect(() => {
     setStatusMessage(null);
+    setResponseIdMessage(null);
     setCommandFeedback('');
     setCommandFeedbackIsError(false);
     setChargerError('');
@@ -168,8 +178,12 @@ export const useDashboard = () => {
     }
 
     try {
+      if (latestMessage.topic === topics.subscribe.responseId) {
+        setResponseIdMessage(latestMessage.message);
+        return;
+      }
+
       if (
-        latestMessage.topic === topics.subscribe.responseId ||
         latestMessage.topic === topics.subscribe.status ||
         latestMessage.topic === topics.subscribe.legacyStatus
       ) {
@@ -214,10 +228,10 @@ export const useDashboard = () => {
   }, [mqtt.latestMessage, publish, topics]);
 
   useEffect(() => {
-    if (telemetry.cpStatus !== undefined) {
-      setIsCharging(telemetry.cpStatus === 3);
+    if (telemetry.auth !== undefined) {
+      setIsCharging(telemetry.auth === 1);
     }
-  }, [telemetry.cpStatus]);
+  }, [telemetry.auth]);
 
   useEffect(() => {
     if (!mqtt.isConnected) {
@@ -362,7 +376,7 @@ export const useDashboard = () => {
     [],
   );
 
-  const handleAlertsPress = useCallback(() => {
+  const activeAlerts = useMemo(() => {
     const chargerAlerts = chargerError
       ? chargerError
           .split(',')
@@ -373,20 +387,35 @@ export const useDashboard = () => {
             title,
           }))
       : [];
-    const alerts = [
+    return [
       ...new Map(
         [
           ...chargerAlerts,
-          ...telemetry.activeFaults.map(fault => ({
+          ...getActiveFaults(telemetry.faultStatus).map(fault => ({
             id: fault,
             title: FAULT_LABELS[fault],
           })),
         ].map(alert => [alert.title, alert]),
       ).values(),
     ];
+  }, [chargerError, telemetry.faultStatus]);
 
-    navigation.navigate(routes.app.alerts, { alerts });
-  }, [chargerError, navigation, telemetry.activeFaults]);
+  useEffect(() => {
+    if (isFocused) {
+      return;
+    }
+
+    const navigationState = navigation.getState();
+    const activeRoute = navigationState.routes[navigationState.index];
+
+    if (activeRoute?.name === routes.app.alerts) {
+      navigation.navigate(routes.app.alerts, { alerts: activeAlerts });
+    }
+  }, [activeAlerts, isFocused, navigation]);
+
+  const handleAlertsPress = useCallback(() => {
+    navigation.navigate(routes.app.alerts, { alerts: activeAlerts });
+  }, [activeAlerts, navigation]);
 
   const handleSettingsPress = useCallback(() => {
     navigation.navigate(routes.app.settings);
@@ -516,6 +545,7 @@ export const useDashboard = () => {
     handleRetry,
     dashboard: {
       telemetry,
+      phaseParameters,
       isConnected: mqtt.isConnected,
       isLoading: mqtt.isInitializing,
       connectionLabel,

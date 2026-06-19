@@ -14,11 +14,7 @@ import { Svgs } from '@assets/svgs';
 import { AppButton, AppText, Loader } from '@components';
 import { images } from '@assets/imgaes';
 import { useDashboard } from './useDashboard';
-import {
-  formatMetric,
-  getVisiblePhaseNames,
-  type PhaseName,
-} from './dashboardData';
+import { formatMetric, type PhaseName } from './dashboardData';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 interface MetricProps {
@@ -96,8 +92,7 @@ export const Dashboard = () => {
     swipeGesture,
     swipePosition,
   } = useDashboard();
-  const { telemetry } = dashboard;
-  const visiblePhaseNames = getVisiblePhaseNames(telemetry);
+  const { phaseParameters, telemetry } = dashboard;
   const alertPulseScale = useRef(new Animated.Value(1)).current;
   const chargingStatus =
     telemetry.cpStatus === undefined
@@ -222,7 +217,7 @@ export const Dashboard = () => {
           </View>
         ) : null}
 
-        {dashboard.chargerError ? (
+        {/* {dashboard.chargerError ? (
           <View style={styles.chargerErrorCard}>
             <AppText
               semibold
@@ -234,7 +229,7 @@ export const Dashboard = () => {
               style={styles.chargerErrorText}
             />
           </View>
-        ) : null}
+        ) : null} */}
 
         <View style={[styles.card, styles.statusCard]}>
           <Svgs.ChargingStatus width={36} height={36} />
@@ -281,13 +276,13 @@ export const Dashboard = () => {
             />
           </View>
 
-          {visiblePhaseNames.map(phase => (
+          {phaseParameters.visiblePhaseNames.map(phase => (
             <PhaseCard
               key={phase}
               phase={phase}
               style={styles}
-              voltage={telemetry.phases[phase].voltage}
-              current={telemetry.phases[phase].current}
+              voltage={phaseParameters.phases[phase].voltage}
+              current={phaseParameters.phases[phase].current}
             />
           ))}
         </View>
@@ -381,7 +376,7 @@ export const Dashboard = () => {
           </View>
         </View>
 
-        {dashboard.commandFeedback ? (
+        {/* {dashboard.commandFeedback ? (
           <AppText
             centered
             numberOfLines={3}
@@ -391,7 +386,7 @@ export const Dashboard = () => {
               dashboard.commandFeedbackIsError && styles.commandFeedbackError,
             ]}
           />
-        ) : null}
+        ) : null} */}
       </ScrollView>
       <Loader visible={dashboard.isLoading} loaderColor="#0BB2C3" />
     </ImageBackground>

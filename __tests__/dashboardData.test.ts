@@ -4,6 +4,7 @@ import {
   getEvseCapacityText,
   getVisiblePhaseNames,
   parseDashboardMessage,
+  parsePhaseParametersMessage,
 } from '../src/screens/authorised/dashboard/dashboardData';
 
 describe('dashboard MQTT data mapping', () => {
@@ -52,10 +53,16 @@ describe('dashboard MQTT data mapping', () => {
     );
 
     expect(telemetry.cpStatusText).toBe('NOT CONNECTED');
+    expect(telemetry.auth).toBe(1);
     expect(telemetry.temperature).toBe(27);
     expect(telemetry.setCurrent).toBe(12);
     expect(telemetry.voltage).toBe(230.4);
     expect(telemetry.phases.R).toEqual({ voltage: 230.4, current: 0 });
+  });
+
+  it('maps status auth as the charging start and stop state', () => {
+    expect(parseDashboardMessage(JSON.stringify({ auth: 1 })).auth).toBe(1);
+    expect(parseDashboardMessage(JSON.stringify({ auth: 0 })).auth).toBe(0);
   });
 
   it('shows only phases with voltage or current data once telemetry arrives', () => {
@@ -88,6 +95,50 @@ describe('dashboard MQTT data mapping', () => {
       'Y',
       'B',
     ]);
+  });
+
+  it('maps phase parameters and visibility from the responseid payload', () => {
+    const phaseParameters = parsePhaseParametersMessage(
+      JSON.stringify({
+        voltageR: 0,
+        currentR: 0,
+        voltageY: 231,
+        currentY: 2,
+      }),
+    );
+
+    expect(phaseParameters.visiblePhaseNames).toEqual(['R', 'Y']);
+    expect(phaseParameters.phases.R).toEqual({ voltage: 0, current: 0 });
+    expect(phaseParameters.phases.Y).toEqual({ voltage: 231, current: 2 });
+  });
+
+  it('uses responseid charger capacity to choose single or three phase', () => {
+    expect(
+      parsePhaseParametersMessage(JSON.stringify({ evsecap: 1 }))
+        .visiblePhaseNames,
+    ).toEqual(['R']);
+    expect(
+      parsePhaseParametersMessage(JSON.stringify({ evsecap: 2 }))
+        .visiblePhaseNames,
+    ).toEqual(['R', 'Y', 'B']);
+  });
+
+  it('preserves status phase values missing from the responseid payload', () => {
+    const statusTelemetry = parseDashboardMessage(
+      JSON.stringify({
+        voltageR: 230,
+        currentR: 10,
+        voltageY: 231,
+        currentY: 11,
+      }),
+    );
+    const phaseParameters = parsePhaseParametersMessage(
+      JSON.stringify({ evsecap: 1 }),
+      statusTelemetry.phases,
+    );
+
+    expect(phaseParameters.visiblePhaseNames).toEqual(['R']);
+    expect(phaseParameters.phases.R).toEqual({ voltage: 230, current: 10 });
   });
 
   it('accepts future camelCase aliases and device capacity fallback', () => {
