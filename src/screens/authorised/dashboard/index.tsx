@@ -43,10 +43,14 @@ const PhaseCard = ({ phase, voltage, current, style }: PhaseCardProps) => (
       {/* <View style={style.phaseBadge}>
         <AppText semibold label={phase} style={style.phaseBadgeText} />
       </View> */}
-      <AppText semibold label={`Phase ${phase}`} style={style.phaseCardTitle} />
+      {/* <AppText semibold label={`Phase ${phase}`} style={style.phaseCardTitle} /> */}
     </View>
 
     <View style={style.phaseMetricGrid}>
+      <View style={style.phaseMiniMetric}>
+        <AppText label="Phase" style={style.phaseMiniLabel} />
+        <AppText bold label={phase} style={style.phaseMiniValue} />
+      </View>
       <View style={style.phaseMiniMetric}>
         <AppText label="Voltage" style={style.phaseMiniLabel} />
         <AppText
@@ -199,37 +203,6 @@ export const Dashboard = () => {
             ]}
           />
         </View>
-
-        {dashboard.connectionError ? (
-          <View style={styles.connectionErrorCard}>
-            <AppText
-              medium
-              centered
-              numberOfLines={3}
-              label={dashboard.connectionError}
-              style={styles.connectionErrorText}
-            />
-            <AppButton
-              title="Retry"
-              onPress={handleRetry}
-              style={styles.retryButton}
-            />
-          </View>
-        ) : null}
-
-        {/* {dashboard.chargerError ? (
-          <View style={styles.chargerErrorCard}>
-            <AppText
-              semibold
-              label="Charger alert"
-              style={styles.chargerErrorTitle}
-            />
-            <AppText
-              label={dashboard.chargerError}
-              style={styles.chargerErrorText}
-            />
-          </View>
-        ) : null} */}
 
         <View style={[styles.card, styles.statusCard]}>
           <Svgs.ChargingStatus width={36} height={36} />
@@ -387,6 +360,37 @@ export const Dashboard = () => {
             ]}
           />
         ) : null} */}
+
+        {/* {dashboard.chargerError ? (
+          <View style={styles.chargerErrorCard}>
+            <AppText
+              semibold
+              label="Charger alert"
+              style={styles.chargerErrorTitle}
+            />
+            <AppText
+              label={dashboard.chargerError}
+              style={styles.chargerErrorText}
+            />
+          </View>
+        ) : null} */}
+
+        {dashboard.connectionError ? (
+          <View style={styles.connectionErrorCard}>
+            <AppText
+              medium
+              centered
+              numberOfLines={3}
+              label={dashboard.connectionError}
+              style={styles.connectionErrorText}
+            />
+            <AppButton
+              title="Retry"
+              onPress={handleRetry}
+              style={styles.retryButton}
+            />
+          </View>
+        ) : null}
       </ScrollView>
       <Loader visible={dashboard.isLoading} loaderColor="#0BB2C3" />
     </ImageBackground>
