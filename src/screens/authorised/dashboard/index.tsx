@@ -295,7 +295,7 @@ export const Dashboard = () => {
         <View style={[styles.card, styles.sessionCard]}>
           <Metric
             label="Timer (hh:mm:ss)"
-            value={telemetry.duration}
+            value={dashboard.duration}
             style={styles}
           />
           <Metric

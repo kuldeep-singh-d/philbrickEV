@@ -4,7 +4,9 @@ import { AppState, LayoutChangeEvent, type AppStateStatus } from 'react-native';
 import { Gesture } from 'react-native-gesture-handler';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { useDeviceDimensions, useMqtt, useSelector } from '@hooks';
+import { useDeviceDimensions, useDispatch, useMqtt, useSelector } from '@hooks';
+import { apiCallBegan } from '@store/apiActions';
+import { apiRoutes, methods } from '@store/apiRoutes';
 import { selectDeviceMqttTopic } from '@store/slices/devices/devices';
 import {
   getMqttErrorDetails,
@@ -14,6 +16,7 @@ import { createDeviceMqttTopics, mqttPayloads } from '../../../mqtt/mqttTopics';
 import {
   FAULT_LABELS,
   getActiveFaults,
+  formatDuration,
   parseDashboardMessage,
 } from './dashboardData';
 import useStyles from './styles';
@@ -68,12 +71,25 @@ const getChargerErrorText = (message: string) => {
   return getMessageText(message, 'The charger reported an error.');
 };
 
+const getSessionDeviceId = (device: Record<string, unknown> | null) => {
+  const value = device?.id ?? device?.device_id ?? device?.deviceId;
+
+  return typeof value === 'string' || typeof value === 'number'
+    ? String(value).trim()
+    : '';
+};
+
 export const useDashboard = () => {
   const styles = useStyles();
+  const dispatch = useDispatch();
   const navigation: any = useNavigation();
   const { moderateWidth } = useDeviceDimensions();
   const selectedDevice = useSelector(state => state.selectedDevice.data);
   const selectedDeviceId = selectDeviceMqttTopic(selectedDevice);
+  const sessionDeviceId = useMemo(
+    () => getSessionDeviceId(selectedDevice as Record<string, unknown> | null),
+    [selectedDevice],
+  );
   const topics = useMemo(
     () => createDeviceMqttTopics(selectedDeviceId),
     [selectedDeviceId],
@@ -99,11 +115,15 @@ export const useDashboard = () => {
   const [commandFeedback, setCommandFeedback] = useState('');
   const [commandFeedbackIsError, setCommandFeedbackIsError] = useState(false);
   const [chargerError, setChargerError] = useState('');
+  const [sessionElapsedSeconds, setSessionElapsedSeconds] = useState(0);
 
   const isChargingRef = useRef(isCharging);
   const startSwipeRef = useRef(0);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   const requestedDeviceRef = useRef('');
+  const sessionStartRef = useRef<string | null>(null);
+  const sessionStartedAtMsRef = useRef<number | null>(null);
+  const sessionTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const telemetry = useMemo(
     () =>
@@ -119,8 +139,26 @@ export const useDashboard = () => {
     setCommandFeedback('');
     setCommandFeedbackIsError(false);
     setChargerError('');
+    setSessionElapsedSeconds(0);
+    setIsCharging(false);
     requestedDeviceRef.current = '';
+    sessionStartRef.current = null;
+    sessionStartedAtMsRef.current = null;
+
+    if (sessionTimerRef.current) {
+      clearInterval(sessionTimerRef.current);
+      sessionTimerRef.current = null;
+    }
   }, [selectedDeviceId]);
+
+  useEffect(
+    () => () => {
+      if (sessionTimerRef.current) {
+        clearInterval(sessionTimerRef.current);
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     const latestMessage = mqtt.latestMessage;
@@ -226,9 +264,86 @@ export const useDashboard = () => {
     return () => subscription.remove();
   }, [disconnect, retry]);
 
+  const syncChargingSession = useCallback(
+    (startedAt: string, endedAt: string) => {
+      if (!sessionDeviceId) {
+        return;
+      }
+
+      dispatch(
+        apiCallBegan({
+          data: {
+            started_at: startedAt,
+            ended_at: endedAt,
+          },
+          isRowData: true,
+          method: methods.POST,
+          url: apiRoutes.chargingSessions(sessionDeviceId),
+        }),
+      );
+    },
+    [dispatch, sessionDeviceId],
+  );
+
   useEffect(() => {
+    const wasCharging = isChargingRef.current;
+
+    if (wasCharging === isCharging) {
+      return;
+    }
+
     isChargingRef.current = isCharging;
-  }, [isCharging]);
+
+    if (isCharging) {
+      const startedAt = new Date();
+      const startedAtIso = startedAt.toISOString();
+
+      sessionStartRef.current = startedAtIso;
+      sessionStartedAtMsRef.current = startedAt.getTime();
+      setSessionElapsedSeconds(0);
+      syncChargingSession(startedAtIso, startedAtIso);
+
+      if (sessionTimerRef.current) {
+        clearInterval(sessionTimerRef.current);
+      }
+
+      sessionTimerRef.current = setInterval(() => {
+        const startedAtMs = sessionStartedAtMsRef.current;
+
+        if (startedAtMs === null) {
+          return;
+        }
+
+        setSessionElapsedSeconds(
+          Math.max(0, Math.floor((Date.now() - startedAtMs) / 1000)),
+        );
+      }, 1000);
+
+      return;
+    }
+
+    if (sessionTimerRef.current) {
+      clearInterval(sessionTimerRef.current);
+      sessionTimerRef.current = null;
+    }
+
+    const startedAt = sessionStartRef.current;
+    const startedAtMs = sessionStartedAtMsRef.current;
+
+    if (!startedAt || startedAtMs === null) {
+      setSessionElapsedSeconds(0);
+      return;
+    }
+
+    const endedAt = new Date();
+
+    setSessionElapsedSeconds(
+      Math.max(0, Math.floor((endedAt.getTime() - startedAtMs) / 1000)),
+    );
+    syncChargingSession(startedAt, endedAt.toISOString());
+    sessionStartRef.current = null;
+    sessionStartedAtMsRef.current = null;
+  }, [isCharging, syncChargingSession]);
 
   const handleWidth = moderateWidth(16);
   const maxSwipeDistance = useMemo(
@@ -293,7 +408,6 @@ export const useDashboard = () => {
         return;
       }
 
-      setIsCharging(nextCharging);
       setCommandFeedback('');
       setCommandFeedbackIsError(false);
       setIsPublishingCommand(true);
@@ -303,6 +417,7 @@ export const useDashboard = () => {
           nextCharging ? topics.publish.remoteStart : topics.publish.remoteStop,
           nextCharging ? mqttPayloads.remoteStart() : mqttPayloads.remoteStop(),
         );
+        setIsCharging(nextCharging);
         setCommandFeedback(
           nextCharging
             ? 'Charging start request sent.'
@@ -314,6 +429,7 @@ export const useDashboard = () => {
           getMqttErrorDetails(error),
         );
         setIsCharging(previousCharging);
+        setSwipePosition(previousCharging ? maxSwipeDistance : 0);
         setCommandFeedbackIsError(true);
         setCommandFeedback(getMqttUserMessage(error));
       } finally {
@@ -414,6 +530,7 @@ export const useDashboard = () => {
           telemetry.phases.Y.current,
           telemetry.phases.B.current,
         ),
+      duration: formatDuration(sessionElapsedSeconds),
       hasFault: telemetry.activeFaults.length > 0 || Boolean(chargerError),
       isPublishing: isPublishingCommand,
       canControl: Boolean(topics && mqtt.isConnected && !isPublishingCommand),
