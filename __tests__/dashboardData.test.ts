@@ -11,7 +11,7 @@ describe('dashboard MQTT data mapping', () => {
   it('maps the current device payload including its voltage field typo', () => {
     const telemetry = parseDashboardMessage(
       JSON.stringify({
-        cp_stat: 3,
+        cp_stat: 5,
         votlageR: 230.4,
         votlageY: 231,
         votlageB: 229.8,
@@ -152,7 +152,7 @@ describe('dashboard MQTT data mapping', () => {
       { evseCapacity: 4 },
     );
 
-    expect(telemetry.cpStatusText).toBe('CONNECTED (Waiting Authentication)');
+    expect(telemetry.cpStatusText).toBe('PLUGGED IN');
     expect(telemetry.duration).toBe('02:10:50');
     expect(telemetry.evseCapacityText).toBe('22 kW');
   });
@@ -167,7 +167,18 @@ describe('dashboard MQTT data mapping', () => {
   });
 
   it('exposes all requested status, capacity, and fault mappings', () => {
-    expect(getCpStatusString(6)).toBe('CP ERROR');
+    expect(
+      Array.from({ length: 8 }, (_, status) => getCpStatusString(status)),
+    ).toEqual([
+      'NOT CONNECTED',
+      'PLUGGED IN',
+      'VENTILATION REQUIRED',
+      'WAITING FOR AUTHENTICATION',
+      'CHARGING ERROR',
+      'CHARGING IN PROGRESS',
+      'CHARGING FINISHED',
+      'EMERGENCY STOP',
+    ]);
     expect(getEvseCapacityText(3)).toBe('11 kW');
     expect(getActiveFaults(2 ** 14)).toEqual(['rcdTestFailed']);
   });

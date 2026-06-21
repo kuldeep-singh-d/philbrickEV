@@ -1,14 +1,16 @@
 import {
   View,
+  Text,
   Image,
   Animated,
   Pressable,
   StatusBar,
   ScrollView,
   StyleSheet,
+  LayoutAnimation,
   ImageBackground,
 } from 'react-native';
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { GestureDetector } from 'react-native-gesture-handler';
 import { Svgs } from '@assets/svgs';
 import { AppButton, AppText, Loader } from '@components';
@@ -20,13 +22,58 @@ import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 interface MetricProps {
   label: string;
   value: string;
+  unit?: string;
   style: ReturnType<typeof useDashboard>['styles'];
 }
 
-const Metric = ({ label, value, style }: MetricProps) => (
+interface MetricValueProps {
+  value: string;
+  unit?: string;
+  variant?: 'default' | 'phase' | 'current';
+  style: ReturnType<typeof useDashboard>['styles'];
+}
+
+const MetricValue = ({
+  value,
+  unit,
+  variant = 'default',
+  style,
+}: MetricValueProps) => {
+  const valueStyle =
+    variant === 'phase'
+      ? style.phaseMiniValue
+      : variant === 'current'
+      ? style.currentValue
+      : style.metricValue;
+  const unitStyle =
+    variant === 'phase'
+      ? style.phaseMiniUnit
+      : variant === 'current'
+      ? style.currentUnit
+      : style.metricUnit;
+
+  return (
+    <AppText
+      bold
+      label={
+        unit ? (
+          <>
+            {value}
+            <Text style={unitStyle}>{` ${unit}`}</Text>
+          </>
+        ) : (
+          value
+        )
+      }
+      style={valueStyle}
+    />
+  );
+};
+
+const Metric = ({ label, value, unit, style }: MetricProps) => (
   <View style={style.metric}>
     <AppText label={label} style={style.metricLabel} />
-    <AppText bold label={value} style={style.metricValue} />
+    <MetricValue value={value} unit={unit} style={style} />
   </View>
 );
 
@@ -39,37 +86,86 @@ interface PhaseCardProps {
 
 const PhaseCard = ({ phase, voltage, current, style }: PhaseCardProps) => (
   <View style={style.phaseMetricCard}>
-    <View style={style.phaseCardHeader}>
-      {/* <View style={style.phaseBadge}>
-        <AppText semibold label={phase} style={style.phaseBadgeText} />
-      </View> */}
-      {/* <AppText semibold label={`Phase ${phase}`} style={style.phaseCardTitle} /> */}
-    </View>
-
     <View style={style.phaseMetricGrid}>
       <View style={style.phaseMiniMetric}>
         <AppText label="Phase" style={style.phaseMiniLabel} />
-        <AppText bold label={phase} style={style.phaseMiniValue} />
+        <MetricValue value={phase} variant="phase" style={style} />
       </View>
       <View style={style.phaseMiniMetric}>
         <AppText label="Voltage" style={style.phaseMiniLabel} />
-        <AppText
-          bold
-          label={`${formatMetric(voltage)} V`}
-          style={style.phaseMiniValue}
+        <MetricValue
+          unit="V"
+          style={style}
+          variant="phase"
+          value={formatMetric(voltage)}
         />
       </View>
       <View style={style.phaseMiniMetric}>
         <AppText label="Current" style={style.phaseMiniLabel} />
-        <AppText
-          bold
-          label={`${formatMetric(current)} A`}
-          style={style.phaseMiniValue}
+        <MetricValue
+          unit="A"
+          variant="phase"
+          value={formatMetric(current)}
+          style={style}
         />
       </View>
     </View>
   </View>
 );
+
+interface CurrentControlProps {
+  currentControl: ReturnType<typeof useDashboard>['currentControl'];
+  style: ReturnType<typeof useDashboard>['styles'];
+}
+
+const CurrentControl = ({ currentControl, style }: CurrentControlProps) => {
+  const decreaseDisabled =
+    !currentControl.canSet || currentControl.value <= currentControl.minimum;
+  const increaseDisabled =
+    !currentControl.canSet || currentControl.value >= currentControl.maximum;
+
+  return (
+    <View style={[style.metric, style.currentControl]}>
+      <AppText label="Current (A)" style={style.metricLabel} />
+      <View style={style.currentControlRow}>
+        <Pressable
+          hitSlop={8}
+          disabled={decreaseDisabled}
+          accessibilityRole="button"
+          accessibilityLabel="Decrease current"
+          onPress={currentControl.handleDecrease}
+          style={[
+            style.currentArrowButton,
+            decreaseDisabled && style.currentArrowButtonDisabled,
+          ]}
+        >
+          <Svgs.Swipe width={9} height={14} style={style.currentArrowLeft} />
+        </Pressable>
+
+        <MetricValue
+          unit="A"
+          variant="current"
+          value={String(currentControl.value)}
+          style={style}
+        />
+
+        <Pressable
+          hitSlop={8}
+          disabled={increaseDisabled}
+          accessibilityRole="button"
+          accessibilityLabel="Increase current"
+          onPress={currentControl.handleIncrease}
+          style={[
+            style.currentArrowButton,
+            increaseDisabled && style.currentArrowButtonDisabled,
+          ]}
+        >
+          <Svgs.Swipe width={9} height={14} />
+        </Pressable>
+      </View>
+    </View>
+  );
+};
 
 const ChargeHandleBackground = () => (
   <Svg width="100%" height="100%" style={StyleSheet.absoluteFill}>
@@ -95,13 +191,20 @@ export const Dashboard = () => {
     isSwiping,
     swipeGesture,
     swipePosition,
+    currentControl,
   } = useDashboard();
   const { phaseParameters, telemetry } = dashboard;
+  const [phaseParametersExpanded, setPhaseParametersExpanded] = useState(false);
   const alertPulseScale = useRef(new Animated.Value(1)).current;
   const chargingStatus =
     telemetry.cpStatus === undefined
       ? 'Waiting for charger data'
       : telemetry.cpStatusText;
+
+  const togglePhaseParameters = useCallback(() => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setPhaseParametersExpanded(expanded => !expanded);
+  }, []);
 
   useEffect(() => {
     if (!dashboard.hasFault) {
@@ -147,21 +250,23 @@ export const Dashboard = () => {
         contentContainerStyle={styles.content}
       >
         <View style={styles.topBar}>
-          <Pressable
-            accessibilityLabel={
-              dashboard.hasFault
-                ? `${telemetry.activeFaults.length} active charger faults`
-                : 'Open alerts'
-            }
-            hitSlop={8}
-            style={styles.iconButton}
-            accessibilityRole="button"
-            onPress={handleAlertsPress}
-          >
-            <Animated.View style={{ transform: [{ scale: alertPulseScale }] }}>
-              <Svgs.Alert width={25} height={25} />
-            </Animated.View>
-          </Pressable>
+          {dashboard.hasFault ? (
+            <Pressable
+              accessibilityLabel="Open charger alerts"
+              hitSlop={8}
+              style={styles.iconButton}
+              accessibilityRole="button"
+              onPress={handleAlertsPress}
+            >
+              <Animated.View
+                style={{ transform: [{ scale: alertPulseScale }] }}
+              >
+                <Svgs.Alert width={25} height={25} />
+              </Animated.View>
+            </Pressable>
+          ) : (
+            <View style={[styles.iconButton, styles.hiddenIconButton]} />
+          )}
 
           <Image
             resizeMode="contain"
@@ -222,42 +327,66 @@ export const Dashboard = () => {
         </View>
 
         <View style={[styles.card, styles.metricsCard]}>
-          <Metric
-            label="Power"
-            value={`${formatMetric(telemetry.power)} kW`}
-            style={styles}
-          />
-          <Metric
-            label="Temperature"
-            value={`${formatMetric(telemetry.temperature)} °C`}
-            style={styles}
-          />
-          <Metric
-            label="Current"
-            value={`${formatMetric(dashboard.current)} A`}
-            style={styles}
-          />
-        </View>
-
-        <View style={[styles.card, styles.phaseSection]}>
-          <View style={styles.sectionTitleRow}>
-            <Svgs.ThreePhase width={25} height={25} />
-            <AppText
-              semibold
-              label="Phase Parameters"
-              style={styles.sectionTitle}
+          <View style={styles.metricsGrid}>
+            <Metric
+              label="Power"
+              unit="kW"
+              value={formatMetric(telemetry.power)}
+              style={styles}
+            />
+            <Metric
+              label="Temperature"
+              unit="°C"
+              value={formatMetric(telemetry.temperature)}
+              style={styles}
+            />
+            <Metric
+              label="Current"
+              unit="A"
+              value={formatMetric(dashboard.current)}
+              style={styles}
             />
           </View>
 
-          {phaseParameters.visiblePhaseNames.map(phase => (
-            <PhaseCard
-              key={phase}
-              phase={phase}
-              style={styles}
-              voltage={phaseParameters.phases[phase].voltage}
-              current={phaseParameters.phases[phase].current}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ expanded: phaseParametersExpanded }}
+            accessibilityLabel="Phase Parameters"
+            onPress={togglePhaseParameters}
+            style={styles.phaseToggle}
+          >
+            <View style={styles.phaseToggleLabel}>
+              <Svgs.ThreePhase width={20} height={20} />
+              <AppText
+                semibold
+                label="Phase Parameters"
+                style={styles.sectionTitle}
+              />
+            </View>
+            <Svgs.DownArrow
+              width={20}
+              height={20}
+              style={
+                phaseParametersExpanded
+                  ? styles.phaseToggleIconExpanded
+                  : undefined
+              }
             />
-          ))}
+          </Pressable>
+
+          {phaseParametersExpanded ? (
+            <View style={styles.expandedPhaseSection}>
+              {phaseParameters.visiblePhaseNames.map(phase => (
+                <PhaseCard
+                  key={phase}
+                  phase={phase}
+                  style={styles}
+                  voltage={phaseParameters.phases[phase].voltage}
+                  current={phaseParameters.phases[phase].current}
+                />
+              ))}
+            </View>
+          ) : null}
         </View>
 
         <View style={[styles.card, styles.sessionCard]}>
@@ -266,11 +395,7 @@ export const Dashboard = () => {
             value={dashboard.duration}
             style={styles}
           />
-          <Metric
-            label="Voltage (V)"
-            value={`${formatMetric(telemetry.voltage)} V`}
-            style={styles}
-          />
+          <CurrentControl currentControl={currentControl} style={styles} />
         </View>
 
         <View

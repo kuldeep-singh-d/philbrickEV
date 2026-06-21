@@ -34,6 +34,9 @@ export const useStyles = () => {
       borderRadius: moderateWidth(3),
       backgroundColor: 'rgba(255,255,255,0.86)',
     },
+    hiddenIconButton: {
+      opacity: 0,
+    },
 
     brandLogo: {
       width: moderateWidth(40),
@@ -110,9 +113,11 @@ export const useStyles = () => {
       lineHeight: moderateHeight(2),
     },
     metricsCard: {
-      minHeight: moderateHeight(9.8),
       paddingHorizontal: moderateWidth(3.5),
       paddingVertical: moderateHeight(1.5),
+    },
+    metricsGrid: {
+      minHeight: moderateHeight(6.8),
       flexDirection: 'row',
       alignItems: 'stretch',
       columnGap: moderateWidth(2.2),
@@ -137,35 +142,37 @@ export const useStyles = () => {
       fontSize: moderateHeight(2.05),
       lineHeight: moderateHeight(2.6),
     },
-    phaseSection: {
-      paddingHorizontal: moderateWidth(3.5),
-      paddingVertical: moderateHeight(1.5),
+    metricUnit: {
+      fontSize: moderateHeight(1.45),
     },
-    sectionTitleRow: {
+    phaseToggle: {
+      borderTopWidth: 1,
       flexDirection: 'row',
       alignItems: 'center',
-      // marginBottom: moderateHeight(1.2),
+      borderTopColor: '#EEEEEE',
+      marginTop: moderateHeight(1.2),
+      justifyContent: 'space-between',
+      paddingTop: moderateHeight(1.1),
+      paddingHorizontal: moderateWidth(1),
+    },
+    phaseToggleLabel: {
+      flexDirection: 'row',
+      alignItems: 'center',
     },
     sectionTitle: {
-      flex: 1,
       color: '#080808',
-      fontSize: moderateHeight(1.85),
-      marginLeft: moderateWidth(2.5),
+      fontSize: moderateHeight(1.6),
+      marginLeft: moderateWidth(2.2),
+    },
+    phaseToggleIconExpanded: {
+      transform: [{ rotate: '180deg' }],
+    },
+    expandedPhaseSection: {
+      rowGap: moderateHeight(1),
+      paddingTop: moderateHeight(0.8),
     },
     phaseMetricCard: {
-      // minHeight: moderateHeight(10.5),
-      paddingHorizontal: moderateWidth(3.6),
-      // paddingVertical: moderateHeight(1.3),
-      // marginBottom: moderateHeight(1),
-      // borderWidth: 1,
-      // borderColor: '#DDDDDD',
       borderRadius: moderateWidth(3),
-      // backgroundColor: '#FAFAFA',
-    },
-    phaseCardHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginBottom: moderateHeight(1),
     },
     phaseBadge: {
       maxWidth: 38,
@@ -211,6 +218,9 @@ export const useStyles = () => {
       fontSize: moderateHeight(1.95),
       lineHeight: moderateHeight(2.5),
     },
+    phaseMiniUnit: {
+      fontSize: moderateHeight(1.35),
+    },
     sessionCard: {
       flexDirection: 'row',
       alignItems: 'stretch',
@@ -218,6 +228,38 @@ export const useStyles = () => {
       minHeight: moderateHeight(9.5),
       paddingVertical: moderateHeight(1.5),
       paddingHorizontal: moderateWidth(3.5),
+    },
+    currentControl: {
+      paddingVertical: moderateHeight(0.8),
+    },
+    currentControlRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    currentArrowButton: {
+      width: moderateWidth(8),
+      height: moderateWidth(8),
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: moderateWidth(2),
+      // backgroundColor: '#EAFBF1',
+    },
+    currentArrowButtonDisabled: {
+      opacity: 0.35,
+    },
+    currentArrowLeft: {
+      transform: [{ rotate: '180deg' }],
+    },
+    currentValue: {
+      minWidth: moderateWidth(13),
+      color: '#000000',
+      textAlign: 'center',
+      fontSize: moderateHeight(2.05),
+      lineHeight: moderateHeight(2.6),
+    },
+    currentUnit: {
+      fontSize: moderateHeight(1.45),
     },
     swipeContainer: {
       minHeight: moderateHeight(7.3),

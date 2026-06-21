@@ -27,6 +27,13 @@ export type DashboardAlertItem = {
   title: string;
 };
 
+const MIN_CURRENT = 1;
+const MAX_CURRENT = 32;
+const DEFAULT_CURRENT = 16;
+
+const normalizeCurrent = (current: number) =>
+  Math.max(MIN_CURRENT, Math.min(Math.round(current), MAX_CURRENT));
+
 const getMessageText = (message: string, fallback: string) => {
   try {
     const parsed = JSON.parse(message) as Record<string, unknown>;
@@ -121,13 +128,17 @@ export const useDashboard = () => {
   const [commandFeedbackIsError, setCommandFeedbackIsError] = useState(false);
   const [chargerError, setChargerError] = useState('');
   const [sessionElapsedSeconds, setSessionElapsedSeconds] = useState(0);
+  const [currentSetting, setCurrentSetting] = useState(DEFAULT_CURRENT);
+  const [isSettingCurrent, setIsSettingCurrent] = useState(false);
 
   const isChargingRef = useRef(isCharging);
+  const currentSettingRef = useRef(DEFAULT_CURRENT);
+  const isSettingCurrentRef = useRef(false);
   const startSwipeRef = useRef(0);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   const requestedDeviceRef = useRef('');
   const sessionStartRef = useRef<string | null>(null);
-  const sessionStartedAtMsRef = useRef<number | null>(null);
+  const activeTimerStartedAtMsRef = useRef<number | null>(null);
   const sessionTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const telemetry = useMemo(
@@ -142,6 +153,15 @@ export const useDashboard = () => {
     () => parsePhaseParametersMessage(responseIdMessage, telemetry.phases),
     [responseIdMessage, telemetry.phases],
   );
+  const isActiveChargingStatus =
+    telemetry.cpStatus === 2 || telemetry.cpStatus === 5;
+
+  const setCurrentValue = useCallback((current: number) => {
+    const normalizedCurrent = normalizeCurrent(current);
+    currentSettingRef.current = normalizedCurrent;
+    setCurrentSetting(normalizedCurrent);
+    return normalizedCurrent;
+  }, []);
 
   useEffect(() => {
     setStatusMessage(null);
@@ -151,15 +171,30 @@ export const useDashboard = () => {
     setChargerError('');
     setSessionElapsedSeconds(0);
     setIsCharging(false);
+    setCurrentValue(DEFAULT_CURRENT);
+    isSettingCurrentRef.current = false;
+    setIsSettingCurrent(false);
     requestedDeviceRef.current = '';
     sessionStartRef.current = null;
-    sessionStartedAtMsRef.current = null;
+    activeTimerStartedAtMsRef.current = null;
 
     if (sessionTimerRef.current) {
       clearInterval(sessionTimerRef.current);
       sessionTimerRef.current = null;
     }
-  }, [selectedDeviceId]);
+  }, [selectedDeviceId, setCurrentValue]);
+
+  useEffect(() => {
+    if (
+      isSettingCurrentRef.current ||
+      telemetry.setCurrent === undefined ||
+      !Number.isFinite(telemetry.setCurrent)
+    ) {
+      return;
+    }
+
+    setCurrentValue(telemetry.setCurrent);
+  }, [setCurrentValue, telemetry.setCurrent]);
 
   useEffect(
     () => () => {
@@ -313,51 +348,64 @@ export const useDashboard = () => {
       const startedAtIso = startedAt.toISOString();
 
       sessionStartRef.current = startedAtIso;
-      sessionStartedAtMsRef.current = startedAt.getTime();
       setSessionElapsedSeconds(0);
       syncChargingSession(startedAtIso, startedAtIso);
-
-      if (sessionTimerRef.current) {
-        clearInterval(sessionTimerRef.current);
-      }
-
-      sessionTimerRef.current = setInterval(() => {
-        const startedAtMs = sessionStartedAtMsRef.current;
-
-        if (startedAtMs === null) {
-          return;
-        }
-
-        setSessionElapsedSeconds(
-          Math.max(0, Math.floor((Date.now() - startedAtMs) / 1000)),
-        );
-      }, 1000);
 
       return;
     }
 
-    if (sessionTimerRef.current) {
-      clearInterval(sessionTimerRef.current);
-      sessionTimerRef.current = null;
-    }
-
     const startedAt = sessionStartRef.current;
-    const startedAtMs = sessionStartedAtMsRef.current;
 
-    if (!startedAt || startedAtMs === null) {
-      setSessionElapsedSeconds(0);
+    if (!startedAt) {
       return;
     }
 
     const endedAt = new Date();
 
-    setSessionElapsedSeconds(
-      Math.max(0, Math.floor((endedAt.getTime() - startedAtMs) / 1000)),
-    );
     syncChargingSession(startedAt, endedAt.toISOString());
     sessionStartRef.current = null;
-    sessionStartedAtMsRef.current = null;
   }, [isCharging, syncChargingSession]);
+
+  useEffect(() => {
+    if (!isActiveChargingStatus) {
+      const startedAtMs = activeTimerStartedAtMsRef.current;
+
+      if (startedAtMs !== null) {
+        setSessionElapsedSeconds(
+          Math.max(0, Math.floor((Date.now() - startedAtMs) / 1000)),
+        );
+        activeTimerStartedAtMsRef.current = null;
+      }
+
+      if (sessionTimerRef.current) {
+        clearInterval(sessionTimerRef.current);
+        sessionTimerRef.current = null;
+      }
+
+      return;
+    }
+
+    const startedAtMs = Date.now();
+    activeTimerStartedAtMsRef.current = startedAtMs;
+    setSessionElapsedSeconds(0);
+
+    if (sessionTimerRef.current) {
+      clearInterval(sessionTimerRef.current);
+    }
+
+    sessionTimerRef.current = setInterval(() => {
+      setSessionElapsedSeconds(
+        Math.max(0, Math.floor((Date.now() - startedAtMs) / 1000)),
+      );
+    }, 1000);
+
+    return () => {
+      if (sessionTimerRef.current) {
+        clearInterval(sessionTimerRef.current);
+        sessionTimerRef.current = null;
+      }
+    };
+  }, [isActiveChargingStatus]);
 
   const handleWidth = moderateWidth(16);
   const maxSwipeDistance = useMemo(
@@ -427,6 +475,55 @@ export const useDashboard = () => {
     setChargerError('');
     retry();
   }, [retry]);
+
+  const adjustCurrent = useCallback(
+    async (change: number) => {
+      if (!topics || !mqtt.isConnected || isSettingCurrentRef.current) {
+        return;
+      }
+
+      const previousCurrent = currentSettingRef.current;
+      const nextCurrent = normalizeCurrent(previousCurrent + change);
+
+      if (nextCurrent === previousCurrent) {
+        return;
+      }
+
+      setCurrentValue(nextCurrent);
+      isSettingCurrentRef.current = true;
+      setIsSettingCurrent(true);
+      setCommandFeedback('');
+      setCommandFeedbackIsError(false);
+
+      try {
+        await publish(
+          topics.publish.setCurrent,
+          mqttPayloads.setCurrent(nextCurrent),
+        );
+        setCommandFeedback(`Charging current set to ${nextCurrent} A.`);
+      } catch (error) {
+        console.warn(
+          '[Dashboard MQTT] set current publish failed',
+          getMqttErrorDetails(error),
+        );
+        setCurrentValue(previousCurrent);
+        setCommandFeedbackIsError(true);
+        setCommandFeedback(getMqttUserMessage(error));
+      } finally {
+        isSettingCurrentRef.current = false;
+        setIsSettingCurrent(false);
+      }
+    },
+    [mqtt.isConnected, publish, setCurrentValue, topics],
+  );
+
+  const handleCurrentDecrease = useCallback(() => {
+    adjustCurrent(-1).catch(() => undefined);
+  }, [adjustCurrent]);
+
+  const handleCurrentIncrease = useCallback(() => {
+    adjustCurrent(1).catch(() => undefined);
+  }, [adjustCurrent]);
 
   const handleChargeChange = useCallback(
     async (nextCharging: boolean) => {
@@ -543,6 +640,15 @@ export const useDashboard = () => {
     handleAlertsPress,
     handleSettingsPress,
     handleRetry,
+    currentControl: {
+      value: currentSetting,
+      minimum: MIN_CURRENT,
+      maximum: MAX_CURRENT,
+      isSetting: isSettingCurrent,
+      canSet: Boolean(topics && mqtt.isConnected && !isSettingCurrent),
+      handleDecrease: handleCurrentDecrease,
+      handleIncrease: handleCurrentIncrease,
+    },
     dashboard: {
       telemetry,
       phaseParameters,

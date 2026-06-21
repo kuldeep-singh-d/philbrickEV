@@ -176,17 +176,19 @@ export const getCpStatusString = (cp?: number) => {
     case 0:
       return 'NOT CONNECTED';
     case 1:
-      return 'CONNECTED (Waiting Authentication)';
+      return 'PLUGGED IN';
     case 2:
-      return 'CONNECTED';
-    case 3:
-      return 'CHARGING IN PROGRESS';
-    case 4:
       return 'VENTILATION REQUIRED';
+    case 3:
+      return 'WAITING FOR AUTHENTICATION';
+    case 4:
+      return 'CHARGING ERROR';
     case 5:
-      return 'CHARGING FINISHED';
+      return 'CHARGING IN PROGRESS';
     case 6:
-      return 'CP ERROR';
+      return 'CHARGING FINISHED';
+    case 7:
+      return 'EMERGENCY STOP';
     default:
       return 'UNKNOWN';
   }
