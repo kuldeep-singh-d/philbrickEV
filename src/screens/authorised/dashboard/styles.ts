@@ -31,7 +31,7 @@ export const useStyles = () => {
       width: moderateWidth(9),
       height: moderateWidth(9),
       justifyContent: 'center',
-      borderRadius: moderateWidth(4.5),
+      borderRadius: moderateWidth(2.5),
       backgroundColor: 'rgba(255,255,255,0.92)',
       shadowColor: '#426D4A',
       shadowOpacity: 0.08,
@@ -389,7 +389,6 @@ export const useStyles = () => {
     swipeContainer: {
       minHeight: moderateHeight(7.6),
       marginBottom: moderateHeight(1.2),
-      backgroundColor: '#F9FFFA',
     },
     swipeTrack: {
       flex: 1,

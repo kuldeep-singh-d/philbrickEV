@@ -26,9 +26,9 @@ export const useStyles = () => {
       justifyContent: 'center',
       width: moderateWidth(16),
       height: moderateWidth(16),
-      borderRadius: moderateWidth(8),
       backgroundColor: '#0BB2C3',
       marginRight: moderateWidth(4),
+      borderRadius: moderateWidth(8),
     },
     avatarText: {
       color: '#FFFFFF',
@@ -39,6 +39,7 @@ export const useStyles = () => {
       flex: 1,
     },
     profileName: {
+      textTransform: 'capitalize',
       fontSize: moderateHeight(2),
       lineHeight: moderateHeight(2.8),
     },
@@ -46,7 +47,6 @@ export const useStyles = () => {
       color: '#0A8E9B',
       fontSize: moderateHeight(1.4),
       marginTop: moderateHeight(0.1),
-      // marginBottom: moderateHeight(0.7),
     },
     detailRow: {
       flexDirection: 'row',
@@ -56,9 +56,9 @@ export const useStyles = () => {
     detailText: {
       flex: 1,
       color: '#000000',
+      marginLeft: moderateWidth(2),
       fontSize: moderateHeight(1.5),
       lineHeight: moderateHeight(2),
-      marginLeft: moderateWidth(2),
     },
     heading: {
       fontSize: moderateHeight(2),

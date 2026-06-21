@@ -59,6 +59,10 @@ export const useStyles = () => {
       width: moderateWidth(5.7),
       height: moderateWidth(5.7),
     },
+    settingsTabIcon: {
+      width: moderateWidth(6.5),
+      height: moderateWidth(6.5),
+    },
     activeTabLabel: {
       flexShrink: 1,
       color: '#FFFFFF',

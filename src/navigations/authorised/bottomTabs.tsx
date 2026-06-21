@@ -70,6 +70,10 @@ const BottomTabBar = ({ state, navigation }: BottomTabBarProps) => {
           const isFocused = state.index === index;
           const tabItem = TAB_ITEMS[route.name];
           const Icon = tabItem.icon;
+          const iconStyle =
+            route.name === routes.app.settings
+              ? styles.settingsTabIcon
+              : styles.tabIcon;
 
           const handlePress = () => {
             const event = navigation.emit({
@@ -108,8 +112,8 @@ const BottomTabBar = ({ state, navigation }: BottomTabBarProps) => {
 
               <View style={styles.tabContent}>
                 <Icon
-                  width={styles.tabIcon.width}
-                  height={styles.tabIcon.height}
+                  width={iconStyle.width}
+                  height={iconStyle.height}
                   color={isFocused ? '#FFFFFF' : '#607578'}
                 />
                 {isFocused ? (
