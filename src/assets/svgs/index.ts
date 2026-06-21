@@ -29,6 +29,14 @@ import SettingActive from './settingActive.svg';
 import ChargingStatus from './chargingStatus.svg';
 import ThreePhase from './threePhase.svg';
 import VoltageGauge from './voltageGauge.svg';
+import AlertVoltage from './alertVoltage.svg';
+import AlertCurrent from './alertCurrent.svg';
+import AlertTemperature from './alertTemperature.svg';
+import AlertEarthFault from './alertEarthFault.svg';
+import AlertScdTrip from './alertScdTrip.svg';
+import AlertEmergencyStop from './alertEmergencyStop.svg';
+import AlertRcdTest from './alertRcdTest.svg';
+import AlertGeneric from './alertGeneric.svg';
 
 export const Svgs = Object.freeze({
   Call,
@@ -62,4 +70,12 @@ export const Svgs = Object.freeze({
   ChargingStatus,
   ThreePhase,
   VoltageGauge,
+  AlertVoltage,
+  AlertCurrent,
+  AlertTemperature,
+  AlertEarthFault,
+  AlertScdTrip,
+  AlertEmergencyStop,
+  AlertRcdTest,
+  AlertGeneric,
 });
