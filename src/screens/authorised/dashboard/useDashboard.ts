@@ -454,7 +454,8 @@ export const useDashboard = () => {
       return;
     }
 
-    const navigationState = navigation.getState();
+    const navigationState =
+      navigation.getParent()?.getState() || navigation.getState();
     const activeRoute = navigationState.routes[navigationState.index];
 
     if (activeRoute?.name === routes.app.alerts) {
@@ -465,10 +466,6 @@ export const useDashboard = () => {
   const handleAlertsPress = useCallback(() => {
     navigation.navigate(routes.app.alerts, { alerts: activeAlerts });
   }, [activeAlerts, navigation]);
-
-  const handleSettingsPress = useCallback(() => {
-    navigation.navigate(routes.app.settings);
-  }, [navigation]);
 
   const handleRetry = useCallback(() => {
     setCommandFeedback('');
@@ -667,7 +664,6 @@ export const useDashboard = () => {
     swipeGesture,
     handleTrackLayout,
     handleAlertsPress,
-    handleSettingsPress,
     handleRetry,
     currentControl: {
       value: currentSetting,

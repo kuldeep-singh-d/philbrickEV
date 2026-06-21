@@ -52,7 +52,7 @@ export const useSelectDevice = () => {
 
   const handleNext = useCallback(() => {
     if (selectedDevice) {
-      navigation.replace(routes.app.dashboard);
+      navigation.replace(routes.app.mainTabs);
     }
   }, [navigation, selectedDevice]);
 

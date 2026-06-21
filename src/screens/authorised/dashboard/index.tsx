@@ -185,7 +185,6 @@ export const Dashboard = () => {
     dashboard,
     handleAlertsPress,
     handleRetry,
-    handleSettingsPress,
     handleTrackLayout,
     isCharging,
     isSwiping,
@@ -274,15 +273,7 @@ export const Dashboard = () => {
             source={images.headerLogo}
           />
 
-          <Pressable
-            hitSlop={8}
-            style={styles.iconButton}
-            accessibilityRole="button"
-            onPress={handleSettingsPress}
-            accessibilityLabel="Open settings"
-          >
-            <Svgs.Setting width={25} height={25} />
-          </Pressable>
+          <View style={[styles.iconButton, styles.hiddenIconButton]} />
         </View>
 
         <View style={styles.heroSpace} />

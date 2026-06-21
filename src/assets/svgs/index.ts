@@ -37,6 +37,9 @@ import AlertScdTrip from './alertScdTrip.svg';
 import AlertEmergencyStop from './alertEmergencyStop.svg';
 import AlertRcdTest from './alertRcdTest.svg';
 import AlertGeneric from './alertGeneric.svg';
+import TabDashboard from './tabDashboard.svg';
+import TabSettings from './tabSettings.svg';
+import TabChargingHistory from './tabChargingHistory.svg';
 
 export const Svgs = Object.freeze({
   Call,
@@ -78,4 +81,7 @@ export const Svgs = Object.freeze({
   AlertEmergencyStop,
   AlertRcdTest,
   AlertGeneric,
+  TabDashboard,
+  TabSettings,
+  TabChargingHistory,
 });

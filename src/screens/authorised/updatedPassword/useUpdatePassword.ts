@@ -157,7 +157,9 @@ export const useUpdatePassword = () => {
     dispatch(clearForgotPasswordRes());
     dispatch(clearVerifyOtpRes());
     dispatch(clearResetPasswordRes());
-    navigation.navigate(routes.app.settings);
+    navigation.navigate(routes.app.mainTabs, {
+      screen: routes.app.settings,
+    });
   }, [dispatch, navigation, resetPasswordResponse.data]);
 
   useEffect(() => {

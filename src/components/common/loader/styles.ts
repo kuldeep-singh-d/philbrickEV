@@ -1,8 +1,8 @@
-import {StyleSheet} from 'react-native';
-import {useTheme} from '@react-navigation/native';
+import { StyleSheet } from 'react-native';
+import { useTheme } from '@react-navigation/native';
 
 const useStyles = () => {
-  const {colors} = useTheme();
+  const { colors } = useTheme();
 
   return StyleSheet.create({
     wrapper: {
@@ -13,7 +13,7 @@ const useStyles = () => {
       bottom: 0,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: colors.overlay,
+      // backgroundColor: colors.overlay,
     },
   });
 };
