@@ -5,6 +5,7 @@ import { Gesture } from 'react-native-gesture-handler';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useDeviceDimensions, useDispatch, useMqtt, useSelector } from '@hooks';
+import { show } from '@utils/helpers';
 import { apiCallBegan } from '@store/apiActions';
 import { apiRoutes, methods } from '@store/apiRoutes';
 import { selectDeviceMqttTopic } from '@store/slices/devices/devices';
@@ -478,7 +479,18 @@ export const useDashboard = () => {
 
   const adjustCurrent = useCallback(
     async (change: number) => {
-      if (!topics || !mqtt.isConnected || isSettingCurrentRef.current) {
+      if (!topics) {
+        show.warn('Select a charger before setting the current.');
+        return;
+      }
+
+      if (!mqtt.isConnected) {
+        show.warn('The charger is not connected yet. Please try again.');
+        retry();
+        return;
+      }
+
+      if (isSettingCurrentRef.current) {
         return;
       }
 
@@ -496,25 +508,42 @@ export const useDashboard = () => {
       setCommandFeedbackIsError(false);
 
       try {
+        if (__DEV__) {
+          console.log('[Dashboard MQTT] setting current', {
+            current: nextCurrent,
+          });
+        }
+
         await publish(
           topics.publish.setCurrent,
           mqttPayloads.setCurrent(nextCurrent),
         );
+
+        if (__DEV__) {
+          console.log('[Dashboard MQTT] set current published', {
+            current: nextCurrent,
+          });
+        }
+
         setCommandFeedback(`Charging current set to ${nextCurrent} A.`);
+        // show.success(`Charging current set to ${nextCurrent} A.`);
       } catch (error) {
+        const errorMessage = getMqttUserMessage(error);
+
         console.warn(
           '[Dashboard MQTT] set current publish failed',
           getMqttErrorDetails(error),
         );
         setCurrentValue(previousCurrent);
         setCommandFeedbackIsError(true);
-        setCommandFeedback(getMqttUserMessage(error));
+        setCommandFeedback(errorMessage);
+        show.error(errorMessage);
       } finally {
         isSettingCurrentRef.current = false;
         setIsSettingCurrent(false);
       }
     },
-    [mqtt.isConnected, publish, setCurrentValue, topics],
+    [mqtt.isConnected, publish, retry, setCurrentValue, topics],
   );
 
   const handleCurrentDecrease = useCallback(() => {

@@ -28,18 +28,20 @@ export const useStyles = () => {
     },
     deviceCard: {
       width: '100%',
+      borderWidth: 1.5,
       flexDirection: 'row',
       alignItems: 'center',
-      borderWidth: 1,
       borderColor: '#D1D5DB',
-      borderRadius: moderateWidth(3),
-      paddingVertical: moderateHeight(1.5),
-      paddingHorizontal: moderateWidth(4),
-      marginBottom: moderateHeight(1.5),
       backgroundColor: '#FFFFFF',
+      borderRadius: moderateWidth(3),
+      minHeight: moderateHeight(8.2),
+      marginBottom: moderateHeight(1),
+      paddingVertical: moderateHeight(1),
+      paddingHorizontal: moderateWidth(4),
     },
     selectedDeviceCard: {
       borderColor: '#3AC34B',
+      backgroundColor: '#F6FFF7',
     },
     pressedDeviceCard: {
       opacity: 0.8,
@@ -47,12 +49,21 @@ export const useStyles = () => {
     deviceInfo: {
       flex: 1,
     },
-    selectedDot: {
+    activeBadge: {
       marginLeft: moderateWidth(3),
+      paddingVertical: moderateHeight(0.45),
+      paddingHorizontal: moderateWidth(2.8),
+      borderRadius: moderateWidth(4),
+      backgroundColor: '#31C44C',
+    },
+    activeBadgeText: {
+      color: '#FFFFFF',
+      fontSize: moderateHeight(1.25),
+      lineHeight: moderateHeight(1.8),
     },
     deviceName: {
       fontSize: moderateHeight(1.8),
-      marginBottom: moderateHeight(0.5),
+      marginBottom: moderateHeight(0.25),
     },
     deviceDetail: {
       color: '#6B7280',
@@ -62,13 +73,6 @@ export const useStyles = () => {
     actionsContainer: {
       marginTop: 'auto',
       marginBottom: moderateHeight(4),
-    },
-    buttonRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-    },
-    halfButton: {
-      width: '48%',
     },
   });
 };

@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 
 import { routes } from '@routes';
@@ -17,6 +17,7 @@ export const useSelectDevice = () => {
   const devicesResponse = useSelector(state => state.devices);
   const selectedDevice = useSelector(state => state.selectedDevice.data);
   const [requiresInitialSelection] = useState(() => !selectedDevice);
+  const [refreshing, setRefreshing] = useState(false);
   const devices = selectDevices(devicesResponse.data);
 
   useFocusEffect(
@@ -27,9 +28,16 @@ export const useSelectDevice = () => {
 
   const handleRefresh = useCallback(() => {
     if (!devicesResponse.loading) {
+      setRefreshing(true);
       dispatch(fetchDevices());
     }
   }, [devicesResponse.loading, dispatch]);
+
+  useEffect(() => {
+    if (refreshing && !devicesResponse.loading) {
+      setRefreshing(false);
+    }
+  }, [devicesResponse.loading, refreshing]);
 
   const handleSelectDevice = useCallback(
     (device: Device) => {
@@ -55,6 +63,7 @@ export const useSelectDevice = () => {
       selectedDevice,
       requiresInitialSelection,
       loading: Boolean(devicesResponse.loading),
+      refreshing,
       error: devicesResponse.error
         ? getApiErrorMessage(devicesResponse.error, 'Unable to load devices.')
         : '',

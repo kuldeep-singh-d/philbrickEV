@@ -8,12 +8,9 @@ import AuthorisedScreen from '../../../components/container/AuthorisedScreen';
 export const Alerts = () => {
   const { alerts, styles } = useAlerts();
 
+  console.log('\n ~ Alerts ~ alerts:', alerts);
   return (
-    <AuthorisedScreen
-      roundedHeader
-      showBackButton
-      contentStyle={styles.content}
-    >
+    <AuthorisedScreen contentStyle={styles.content}>
       <AppText semibold label="Alert" style={styles.heading} />
 
       {alerts.length > 0 ? (

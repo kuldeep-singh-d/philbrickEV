@@ -1,4 +1,4 @@
-import React, {memo} from 'react';
+import React, { memo } from 'react';
 import {
   KeyboardAwareScrollView,
   KeyboardAwareScrollViewProps,
@@ -11,15 +11,18 @@ const KeyboardAvoider = ({
   bounces = false,
   extraScrollHeight,
   contentContainerStyle = {},
+  ...scrollViewProps
 }: KeyboardAvoiderProps) => {
   return (
     <KeyboardAwareScrollView
+      {...scrollViewProps}
       enableOnAndroid
       bounces={bounces}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
       extraScrollHeight={extraScrollHeight}
-      contentContainerStyle={contentContainerStyle}>
+      contentContainerStyle={contentContainerStyle}
+    >
       {children}
     </KeyboardAwareScrollView>
   );

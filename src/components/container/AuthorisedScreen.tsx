@@ -6,10 +6,11 @@ import {
   ViewStyle,
   StatusBar,
   StyleSheet,
+  RefreshControlProps,
 } from 'react-native';
 import { images } from '@assets/imgaes';
 import { Svgs } from '@assets/svgs';
-import React, { ReactNode } from 'react';
+import React, { ReactElement, ReactNode } from 'react';
 import { useDeviceDimensions } from '@hooks';
 import { KeyboardAvoider } from '@components';
 import { useNavigation } from '@react-navigation/native';
@@ -20,6 +21,7 @@ interface AuthorisedScreenProps {
   contentStyle?: StyleProp<ViewStyle>;
   showBackButton?: boolean;
   roundedHeader?: boolean;
+  refreshControl?: ReactElement<RefreshControlProps>;
 }
 
 export const AuthorisedScreen = ({
@@ -27,6 +29,7 @@ export const AuthorisedScreen = ({
   contentStyle,
   showBackButton = false,
   roundedHeader = false,
+  refreshControl,
 }: AuthorisedScreenProps) => {
   const styles = useStyles();
   const navigation = useNavigation();
@@ -63,6 +66,7 @@ export const AuthorisedScreen = ({
       </View>
 
       <KeyboardAvoider
+        refreshControl={refreshControl}
         contentContainerStyle={[styles.contentContainer, contentStyle]}
       >
         {children}

@@ -85,66 +85,6 @@ export const useStyles = () => {
       fontSize: moderateHeight(2.4),
       lineHeight: moderateHeight(3.2),
     },
-    currentControl: {
-      width: '100%',
-      overflow: 'hidden',
-      alignItems: 'center',
-      justifyContent: 'center',
-      height: moderateHeight(8),
-      borderRadius: moderateWidth(3),
-      marginTop: moderateHeight(1.5),
-    },
-    currentControlDisabled: {
-      opacity: 0.6,
-    },
-    currentControlGradient: {
-      position: 'absolute',
-      top: 0,
-      right: 0,
-      bottom: 0,
-      left: 0,
-    },
-    currentControlContent: {
-      width: '100%',
-      alignItems: 'center',
-      paddingHorizontal: moderateWidth(5),
-    },
-    currentValue: {
-      color: '#FFFFFF',
-      fontFamily: fonts.semibold,
-      fontSize: moderateHeight(2.4),
-      lineHeight: moderateHeight(3),
-    },
-    currentTrack: {
-      width: '100%',
-      height: moderateHeight(0.6),
-      borderRadius: moderateWidth(1),
-      backgroundColor: 'rgba(255, 255, 255, 0.4)',
-      marginTop: moderateHeight(0.8),
-    },
-    currentTrackFill: {
-      height: '100%',
-      borderRadius: moderateWidth(1),
-      backgroundColor: '#FFFFFF',
-    },
-    currentThumb: {
-      position: 'absolute',
-      top: -moderateHeight(0.45),
-      width: moderateHeight(1.5),
-      height: moderateHeight(1.5),
-      borderRadius: moderateHeight(0.75),
-      borderWidth: 2,
-      borderColor: '#FFFFFF',
-      backgroundColor: '#0BB2C3',
-    },
-    currentStatus: {
-      color: '#0A8E9B',
-      fontSize: moderateHeight(1.4),
-      marginTop: moderateHeight(0.8),
-    },
-    currentStatusError: {
-      color: '#B4232A',
-    },
   });
 };
 
