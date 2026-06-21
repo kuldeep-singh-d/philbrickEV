@@ -40,6 +40,12 @@ import AlertGeneric from './alertGeneric.svg';
 import TabDashboard from './tabDashboard.svg';
 import TabSettings from './tabSettings.svg';
 import TabChargingHistory from './tabChargingHistory.svg';
+import DashboardPower from './dashboardPower.svg';
+import DashboardTemperature from './dashboardTemperature.svg';
+import DashboardCurrent from './dashboardCurrent.svg';
+import DashboardPhase from './dashboardPhase.svg';
+import DashboardTimer from './dashboardTimer.svg';
+import DashboardCharging from './dashboardCharging.svg';
 
 export const Svgs = Object.freeze({
   Call,
@@ -84,4 +90,10 @@ export const Svgs = Object.freeze({
   TabDashboard,
   TabSettings,
   TabChargingHistory,
+  DashboardPower,
+  DashboardTemperature,
+  DashboardCurrent,
+  DashboardPhase,
+  DashboardTimer,
+  DashboardCharging,
 });

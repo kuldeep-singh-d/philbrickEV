@@ -23,7 +23,14 @@ interface MetricProps {
   label: string;
   value: string;
   unit?: string;
+  icon: React.ComponentType<DashboardIconProps>;
   style: ReturnType<typeof useDashboard>['styles'];
+}
+
+interface DashboardIconProps {
+  color?: string;
+  width?: number;
+  height?: number;
 }
 
 interface MetricValueProps {
@@ -70,9 +77,24 @@ const MetricValue = ({
   );
 };
 
-const Metric = ({ label, value, unit, style }: MetricProps) => (
+const Metric = ({ label, value, unit, icon: Icon, style }: MetricProps) => (
   <View style={style.metric}>
-    <AppText label={label} style={style.metricLabel} />
+    <View style={style.metricHeader}>
+      <View style={style.metricIconContainer}>
+        <Icon
+          color="#18B94B"
+          width={style.metricIcon.width}
+          height={style.metricIcon.height}
+        />
+      </View>
+      <AppText
+        medium
+        adjustsFontSizeToFit
+        minimumFontScale={0.82}
+        label={label}
+        style={style.metricLabel}
+      />
+    </View>
     <MetricValue value={value} unit={unit} style={style} />
   </View>
 );
@@ -126,7 +148,16 @@ const CurrentControl = ({ currentControl, style }: CurrentControlProps) => {
 
   return (
     <View style={[style.metric, style.currentControl]}>
-      <AppText label="Current (A)" style={style.metricLabel} />
+      <View style={style.metricHeader}>
+        <View style={style.metricIconContainer}>
+          <Svgs.DashboardCurrent
+            color="#18B94B"
+            width={style.metricIcon.width}
+            height={style.metricIcon.height}
+          />
+        </View>
+        <AppText medium label="Current (A)" style={style.metricLabel} />
+      </View>
       <View style={style.currentControlRow}>
         <Pressable
           hitSlop={8}
@@ -179,6 +210,23 @@ const ChargeHandleBackground = () => (
   </Svg>
 );
 
+const StatusCardBackground = () => (
+  <Svg
+    width="100%"
+    height="100%"
+    pointerEvents="none"
+    style={StyleSheet.absoluteFill}
+  >
+    <Defs>
+      <LinearGradient id="statusCardBorder" x1="0" y1="0" x2="1" y2="1">
+        <Stop offset="0" stopColor="#31C44C" />
+        <Stop offset="1" stopColor="#0BB2C3" />
+      </LinearGradient>
+    </Defs>
+    <Rect width="100%" height="100%" rx="20" fill="url(#statusCardBorder)" />
+  </Svg>
+);
+
 export const Dashboard = () => {
   const {
     styles,
@@ -215,13 +263,13 @@ export const Dashboard = () => {
     const pulseAnimation = Animated.loop(
       Animated.sequence([
         Animated.timing(alertPulseScale, {
-          toValue: 1.16,
-          duration: 650,
+          toValue: 1.2,
+          duration: 300,
           useNativeDriver: true,
         }),
         Animated.timing(alertPulseScale, {
           toValue: 1,
-          duration: 650,
+          duration: 300,
           useNativeDriver: true,
         }),
       ]),
@@ -251,11 +299,11 @@ export const Dashboard = () => {
         <View style={styles.topBar}>
           {dashboard.hasFault ? (
             <Pressable
-              accessibilityLabel="Open charger alerts"
               hitSlop={8}
               style={styles.iconButton}
               accessibilityRole="button"
               onPress={handleAlertsPress}
+              accessibilityLabel="Open charger alerts"
             >
               <Animated.View
                 style={{ transform: [{ scale: alertPulseScale }] }}
@@ -300,69 +348,91 @@ export const Dashboard = () => {
           />
         </View>
 
-        <View style={[styles.card, styles.statusCard]}>
-          <Svgs.ChargingStatus width={36} height={36} />
-          <View style={styles.statusCopy}>
-            <AppText
-              semibold
-              label="Charging status"
-              style={styles.statusTitle}
-            />
-            <AppText
-              medium
-              numberOfLines={2}
-              label={chargingStatus}
-              style={styles.statusDescription}
-            />
+        <View style={styles.statusCardShadow}>
+          <View style={styles.statusCardShell}>
+            {/* <StatusCardBackground /> */}
+            <View style={styles.statusCard}>
+              <View style={styles.statusIconContainer}>
+                <Svgs.DashboardCharging
+                  color="#18B94B"
+                  width={styles.statusIcon.width}
+                  height={styles.statusIcon.height}
+                />
+              </View>
+              <View style={styles.statusCopy}>
+                <AppText
+                  semibold
+                  label="Charging status"
+                  style={styles.statusTitle}
+                />
+                <AppText
+                  medium
+                  numberOfLines={2}
+                  label={chargingStatus}
+                  style={styles.statusDescription}
+                />
+              </View>
+            </View>
           </View>
         </View>
 
         <View style={[styles.card, styles.metricsCard]}>
           <View style={styles.metricsGrid}>
             <Metric
-              label="Power"
               unit="kW"
+              label="Power"
+              style={styles}
+              icon={Svgs.DashboardPower}
               value={formatMetric(telemetry.power)}
-              style={styles}
             />
             <Metric
-              label="Temperature"
               unit="°C"
-              value={formatMetric(telemetry.temperature)}
               style={styles}
+              label="Temperature"
+              icon={Svgs.DashboardTemperature}
+              value={formatMetric(telemetry.temperature)}
             />
             <Metric
-              label="Current"
               unit="A"
-              value={formatMetric(dashboard.current)}
+              label="Current"
               style={styles}
+              icon={Svgs.DashboardCurrent}
+              value={formatMetric(dashboard.current)}
             />
           </View>
 
           <Pressable
             accessibilityRole="button"
-            accessibilityState={{ expanded: phaseParametersExpanded }}
-            accessibilityLabel="Phase Parameters"
-            onPress={togglePhaseParameters}
             style={styles.phaseToggle}
+            onPress={togglePhaseParameters}
+            accessibilityLabel="Phase Parameters"
+            accessibilityState={{ expanded: phaseParametersExpanded }}
           >
             <View style={styles.phaseToggleLabel}>
-              <Svgs.ThreePhase width={20} height={20} />
+              <View style={styles.phaseToggleIconContainer}>
+                <Svgs.DashboardPhase
+                  color="#667085"
+                  width={styles.phaseIcon.width}
+                  height={styles.phaseIcon.height}
+                />
+              </View>
               <AppText
                 semibold
                 label="Phase Parameters"
                 style={styles.sectionTitle}
               />
             </View>
-            <Svgs.DownArrow
-              width={20}
-              height={20}
-              style={
-                phaseParametersExpanded
-                  ? styles.phaseToggleIconExpanded
-                  : undefined
-              }
-            />
+            <View style={styles.phaseChevronContainer}>
+              <Svgs.DownArrow
+                width={16}
+                height={16}
+                style={
+                  phaseParametersExpanded
+                    ? styles.phaseToggleIconExpanded
+                    : undefined
+                }
+              />
+            </View>
           </Pressable>
 
           {phaseParametersExpanded ? (
@@ -383,6 +453,7 @@ export const Dashboard = () => {
         <View style={[styles.card, styles.sessionCard]}>
           <Metric
             label="Timer (hh:mm:ss)"
+            icon={Svgs.DashboardTimer}
             value={dashboard.duration}
             style={styles}
           />
