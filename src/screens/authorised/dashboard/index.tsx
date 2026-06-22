@@ -6,13 +6,13 @@ import {
   Easing,
   Pressable,
   StatusBar,
-  ScrollView,
   StyleSheet,
   LayoutAnimation,
   ImageBackground,
 } from 'react-native';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { GestureDetector } from 'react-native-gesture-handler';
+import { useDeviceDimensions } from '@hooks';
 import { Svgs } from '@assets/svgs';
 import { AppButton, AppText, Loader } from '@components';
 import { images } from '@assets/imgaes';
@@ -225,12 +225,15 @@ interface ChargingHeroProps {
   isConnected: boolean;
   isPublishing: boolean;
   onChargeChange: (nextCharging: boolean) => Promise<void>;
+  scrollY: Animated.Value;
   statusText: string;
   styles: ReturnType<typeof useDashboard>['styles'];
 }
 
 // Keep the action artwork available for a future UI pass without showing it now.
 const SHOW_HERO_ACTION_ICON = false;
+const HERO_COLLAPSE_DISTANCE = 80;
+const HERO_COMPACT_SCALE = 0.78;
 
 const ChargingHero = ({
   canControl,
@@ -240,9 +243,11 @@ const ChargingHero = ({
   isConnected,
   isPublishing,
   onChargeChange,
+  scrollY,
   statusText,
   styles,
 }: ChargingHeroProps) => {
+  const { moderateWidth } = useDeviceDimensions();
   const ringRotation = useRef(new Animated.Value(0)).current;
   const pulseProgress = useRef(new Animated.Value(0)).current;
   const particleProgress = useRef(new Animated.Value(0)).current;
@@ -356,74 +361,98 @@ const ChargingHero = ({
     inputRange: [0, 1],
     outputRange: [1, 1.07],
   });
-  const glowOpacity = pulseProgress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.42, 0.78],
-  });
   const particleOffset = particleProgress.interpolate({
     inputRange: [0, 1],
     outputRange: [5, -7],
   });
-
+  const heroHeight = scrollY.interpolate({
+    inputRange: [0, HERO_COLLAPSE_DISTANCE],
+    outputRange: [moderateWidth(62), moderateWidth(48)],
+    extrapolate: 'clamp',
+  });
+  const heroScale = scrollY.interpolate({
+    inputRange: [0, HERO_COLLAPSE_DISTANCE],
+    outputRange: [1, HERO_COMPACT_SCALE],
+    extrapolate: 'clamp',
+  });
+  const ringOpacity = scrollY.interpolate({
+    inputRange: [0, HERO_COLLAPSE_DISTANCE],
+    outputRange: [1, 0.68],
+    extrapolate: 'clamp',
+  });
+  const glowOpacityWhenCollapsed = scrollY.interpolate({
+    inputRange: [0, HERO_COLLAPSE_DISTANCE],
+    outputRange: [1, 0.32],
+    extrapolate: 'clamp',
+  });
   const handleActionPress = () => {
     onChargeChange(!isCharging).catch(() => undefined);
   };
 
   return (
-    <View style={styles.heroSection}>
-      <View style={styles.heroOrbit}>
+    <Animated.View style={[styles.heroSection, { height: heroHeight }]}>
+      <Animated.View
+        style={[styles.heroOrbit, { transform: [{ scale: heroScale }] }]}
+      >
         <Animated.View
           pointerEvents="none"
-          style={[
-            styles.heroGlow,
-            { backgroundColor: glowColor },
-            isEnergyActive && {
-              opacity: glowOpacity,
-              transform: [{ scale: glowScale }],
-            },
-          ]}
-        />
+          style={[styles.heroGlow, { opacity: glowOpacityWhenCollapsed }]}
+        >
+          <Animated.View
+            style={[
+              styles.heroGlowFill,
+              { backgroundColor: glowColor },
+              isEnergyActive && {
+                transform: [{ scale: glowScale }],
+              },
+            ]}
+          />
+        </Animated.View>
 
         <Animated.View
           pointerEvents="none"
-          style={[
-            styles.heroEnergyRing,
-            { transform: [{ rotate: ringRotate }] },
-          ]}
+          style={[styles.heroEnergyRing, { opacity: ringOpacity }]}
         >
-          <Svg width="100%" height="100%" viewBox="0 0 240 240">
-            <Defs>
-              <LinearGradient
-                id="heroEnergyGradient"
-                x1="0"
-                y1="0"
-                x2="1"
-                y2="1"
-              >
-                <Stop offset="0" stopColor={accentColor} />
-                <Stop offset="1" stopColor={secondaryColor} />
-              </LinearGradient>
-            </Defs>
-            <Circle
-              cx="120"
-              cy="120"
-              r="110"
-              fill="none"
-              stroke="#E3E9E5"
-              strokeWidth="3"
-            />
-            <Circle
-              cx="120"
-              cy="120"
-              r="110"
-              fill="none"
-              opacity={isEnergyActive ? 1 : 0.72}
-              stroke="url(#heroEnergyGradient)"
-              strokeWidth={isEnergyActive ? 6 : 4}
-              strokeDasharray={isEnergyActive ? '30 14' : '690 1'}
-              strokeLinecap="round"
-            />
-          </Svg>
+          <Animated.View
+            style={[
+              styles.heroEnergyRingContent,
+              { transform: [{ rotate: ringRotate }] },
+            ]}
+          >
+            <Svg width="100%" height="100%" viewBox="0 0 240 240">
+              <Defs>
+                <LinearGradient
+                  id="heroEnergyGradient"
+                  x1="0"
+                  y1="0"
+                  x2="1"
+                  y2="1"
+                >
+                  <Stop offset="0" stopColor={accentColor} />
+                  <Stop offset="1" stopColor={secondaryColor} />
+                </LinearGradient>
+              </Defs>
+              <Circle
+                cx="120"
+                cy="120"
+                r="110"
+                fill="none"
+                stroke="#E3E9E5"
+                strokeWidth="3"
+              />
+              <Circle
+                cx="120"
+                cy="120"
+                r="110"
+                fill="none"
+                opacity={isEnergyActive ? 1 : 0.72}
+                stroke="url(#heroEnergyGradient)"
+                strokeWidth={isEnergyActive ? 6 : 4}
+                strokeDasharray={isEnergyActive ? '30 14' : '690 1'}
+                strokeLinecap="round"
+              />
+            </Svg>
+          </Animated.View>
         </Animated.View>
 
         {isEnergyActive ? (
@@ -518,18 +547,14 @@ const ChargingHero = ({
               semibold
               centered
               label={
-                isPublishing
-                  ? 'SENDING COMMAND'
-                  : isCharging
-                  ? 'STOP CHARGING'
-                  : 'START CHARGING'
+                isPublishing ? 'SENDING COMMAND' : isCharging ? 'STOP' : 'START'
               }
               style={[styles.heroActionLabel, { color: actionColor }]}
             />
           </Pressable>
         </View>
-      </View>
-    </View>
+      </Animated.View>
+    </Animated.View>
   );
 };
 
@@ -550,6 +575,7 @@ export const Dashboard = () => {
   const { phaseParameters, telemetry } = dashboard;
   const [phaseParametersExpanded, setPhaseParametersExpanded] = useState(false);
   const alertPulseScale = useRef(new Animated.Value(1)).current;
+  const scrollY = useRef(new Animated.Value(0)).current;
   const chargingStatus =
     telemetry.cpStatus === undefined
       ? 'Waiting for charger data'
@@ -623,25 +649,31 @@ export const Dashboard = () => {
         <View style={[styles.iconButton, styles.hiddenIconButton]} />
       </View>
 
-      <ScrollView
+      <ChargingHero
+        styles={styles}
+        scrollY={scrollY}
+        isCharging={isCharging}
+        hasFault={dashboard.hasFault}
+        cpStatus={telemetry.cpStatus}
+        canControl={dashboard.canControl}
+        isConnected={dashboard.isConnected}
+        statusText={telemetry.cpStatusText}
+        onChargeChange={handleChargeChange}
+        isPublishing={dashboard.isPublishing}
+      />
+
+      <Animated.ScrollView
         style={styles.scrollView}
         bounces={false}
         scrollEnabled={!isSwiping}
+        scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: false },
+        )}
       >
-        <ChargingHero
-          styles={styles}
-          isCharging={isCharging}
-          hasFault={dashboard.hasFault}
-          canControl={dashboard.canControl}
-          isConnected={dashboard.isConnected}
-          isPublishing={dashboard.isPublishing}
-          cpStatus={telemetry.cpStatus}
-          statusText={telemetry.cpStatusText}
-          onChargeChange={handleChargeChange}
-        />
-
         {/* <View style={styles.heroSpace} /> */}
 
         {/* <View
@@ -778,7 +810,7 @@ export const Dashboard = () => {
           <CurrentControl currentControl={currentControl} style={styles} />
         </View>
 
-        <View
+        {/* <View
           style={[
             styles.swipeContainer,
             !dashboard.canControl && styles.controlDisabled,
@@ -852,7 +884,7 @@ export const Dashboard = () => {
               </View>
             </GestureDetector>
           </View>
-        </View>
+        </View> */}
 
         {/* {dashboard.commandFeedback ? (
           <AppText
@@ -896,7 +928,7 @@ export const Dashboard = () => {
             />
           </View>
         ) : null}
-      </ScrollView>
+      </Animated.ScrollView>
       <Loader visible={dashboard.isLoading} loaderColor="#0BB2C3" />
     </ImageBackground>
   );

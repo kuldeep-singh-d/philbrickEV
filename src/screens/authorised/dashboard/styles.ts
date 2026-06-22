@@ -17,6 +17,7 @@ export const useStyles = () => {
     },
     content: {
       paddingHorizontal: moderateWidth(4.5),
+      paddingTop: moderateHeight(1.25),
       paddingBottom: Math.max(insets.bottom, moderateHeight(2.5)),
     },
     topBar: {
@@ -72,12 +73,21 @@ export const useStyles = () => {
       height: moderateWidth(55),
       borderRadius: moderateWidth(27.5),
     },
+    heroGlowFill: {
+      width: '100%',
+      height: '100%',
+      borderRadius: moderateWidth(27.5),
+    },
     heroEnergyRing: {
       position: 'absolute',
       top: 0,
       left: 0,
       width: moderateWidth(62),
       height: moderateWidth(62),
+    },
+    heroEnergyRingContent: {
+      width: '100%',
+      height: '100%',
     },
     heroCircle: {
       width: moderateWidth(52),
@@ -146,9 +156,13 @@ export const useStyles = () => {
       height: moderateWidth(5.2),
     },
     heroActionLabel: {
-      fontSize: moderateHeight(1.3),
-      lineHeight: moderateHeight(1.8),
       letterSpacing: 0.65,
+      backgroundColor: '#DDF9E4',
+      fontSize: moderateHeight(2),
+      lineHeight: moderateHeight(2.5),
+      borderRadius: moderateHeight(1.5),
+      paddingHorizontal: moderateWidth(5),
+      paddingVertical: moderateHeight(0.5),
     },
     heroParticle: {
       position: 'absolute',
