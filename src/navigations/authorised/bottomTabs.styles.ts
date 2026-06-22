@@ -9,7 +9,6 @@ export const useStyles = () => {
   return StyleSheet.create({
     container: {
       backgroundColor: '#FFFFFF',
-      paddingTop: moderateHeight(0.7),
       paddingHorizontal: moderateWidth(4.8),
       paddingBottom: Math.max(insets.bottom, moderateHeight(1.1)),
     },
@@ -22,8 +21,8 @@ export const useStyles = () => {
       flexDirection: 'row',
       alignItems: 'center',
       borderColor: '#E3F2E6',
-      backgroundColor: '#FFFFFF',
       padding: moderateWidth(1.2),
+      backgroundColor: '#FFFFFF',
       minHeight: moderateHeight(7.4),
       borderRadius: moderateWidth(8),
 

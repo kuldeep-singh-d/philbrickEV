@@ -46,6 +46,8 @@ import DashboardCurrent from './dashboardCurrent.svg';
 import DashboardPhase from './dashboardPhase.svg';
 import DashboardTimer from './dashboardTimer.svg';
 import DashboardCharging from './dashboardCharging.svg';
+import HeroStart from './heroStart.svg';
+import HeroStop from './heroStop.svg';
 
 export const Svgs = Object.freeze({
   Call,
@@ -96,4 +98,6 @@ export const Svgs = Object.freeze({
   DashboardPhase,
   DashboardTimer,
   DashboardCharging,
+  HeroStart,
+  HeroStop,
 });

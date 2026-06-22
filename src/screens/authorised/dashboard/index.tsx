@@ -3,6 +3,7 @@ import {
   Text,
   Image,
   Animated,
+  Easing,
   Pressable,
   StatusBar,
   ScrollView,
@@ -17,7 +18,13 @@ import { AppButton, AppText, Loader } from '@components';
 import { images } from '@assets/imgaes';
 import { useDashboard } from './useDashboard';
 import { formatMetric, type PhaseName } from './dashboardData';
-import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
+import Svg, {
+  Circle,
+  Defs,
+  LinearGradient,
+  Rect,
+  Stop,
+} from 'react-native-svg';
 
 interface MetricProps {
   label: string;
@@ -210,22 +217,321 @@ const ChargeHandleBackground = () => (
   </Svg>
 );
 
-const StatusCardBackground = () => (
-  <Svg
-    width="100%"
-    height="100%"
-    pointerEvents="none"
-    style={StyleSheet.absoluteFill}
-  >
-    <Defs>
-      <LinearGradient id="statusCardBorder" x1="0" y1="0" x2="1" y2="1">
-        <Stop offset="0" stopColor="#31C44C" />
-        <Stop offset="1" stopColor="#0BB2C3" />
-      </LinearGradient>
-    </Defs>
-    <Rect width="100%" height="100%" rx="20" fill="url(#statusCardBorder)" />
-  </Svg>
-);
+interface ChargingHeroProps {
+  canControl: boolean;
+  cpStatus?: number;
+  hasFault: boolean;
+  isCharging: boolean;
+  isConnected: boolean;
+  isPublishing: boolean;
+  onChargeChange: (nextCharging: boolean) => Promise<void>;
+  statusText: string;
+  styles: ReturnType<typeof useDashboard>['styles'];
+}
+
+// Keep the action artwork available for a future UI pass without showing it now.
+const SHOW_HERO_ACTION_ICON = false;
+
+const ChargingHero = ({
+  canControl,
+  cpStatus,
+  hasFault,
+  isCharging,
+  isConnected,
+  isPublishing,
+  onChargeChange,
+  statusText,
+  styles,
+}: ChargingHeroProps) => {
+  const ringRotation = useRef(new Animated.Value(0)).current;
+  const pulseProgress = useRef(new Animated.Value(0)).current;
+  const particleProgress = useRef(new Animated.Value(0)).current;
+  const isEnergyActive = cpStatus === 2 || cpStatus === 5;
+  const isError = isConnected && (hasFault || cpStatus === 4 || cpStatus === 7);
+  const isVentilation = cpStatus === 2;
+  const isFinished = cpStatus === 6;
+  const heroStatus = !isConnected
+    ? 'NOT CONNECTED'
+    : cpStatus === undefined
+    ? 'CONNECTED'
+    : cpStatus === 1
+    ? 'CONNECTED'
+    : statusText;
+  const accentColor = isError
+    ? '#E5484D'
+    : isVentilation
+    ? '#0BA7B4'
+    : isConnected
+    ? '#20BE53'
+    : '#98A2B3';
+  const secondaryColor = isError
+    ? '#FF8A8E'
+    : isVentilation
+    ? '#36D6C5'
+    : '#0BB2C3';
+  const glowColor = isError
+    ? 'rgba(229, 72, 77, 0.12)'
+    : isVentilation
+    ? 'rgba(11, 167, 180, 0.14)'
+    : isFinished
+    ? 'rgba(32, 190, 83, 0.16)'
+    : isConnected
+    ? 'rgba(32, 190, 83, 0.13)'
+    : 'rgba(152, 162, 179, 0.12)';
+  const actionColor = !canControl
+    ? '#98A2B3'
+    : isCharging
+    ? '#E5484D'
+    : '#20BE53';
+  const ActionIcon = isCharging ? Svgs.HeroStop : Svgs.HeroStart;
+
+  useEffect(() => {
+    if (!isEnergyActive) {
+      ringRotation.stopAnimation();
+      pulseProgress.stopAnimation();
+      particleProgress.stopAnimation();
+      ringRotation.setValue(0);
+      pulseProgress.setValue(0);
+      particleProgress.setValue(0);
+      return;
+    }
+
+    const ringAnimation = Animated.loop(
+      Animated.timing(ringRotation, {
+        toValue: 1,
+        duration: 6000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      }),
+    );
+    const pulseAnimation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseProgress, {
+          toValue: 1,
+          duration: 1100,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseProgress, {
+          toValue: 0,
+          duration: 1100,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    const particleAnimation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(particleProgress, {
+          toValue: 1,
+          duration: 1500,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(particleProgress, {
+          toValue: 0,
+          duration: 1500,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+
+    ringAnimation.start();
+    pulseAnimation.start();
+    particleAnimation.start();
+
+    return () => {
+      ringAnimation.stop();
+      pulseAnimation.stop();
+      particleAnimation.stop();
+    };
+  }, [isEnergyActive, particleProgress, pulseProgress, ringRotation]);
+
+  const ringRotate = ringRotation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+  const glowScale = pulseProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 1.07],
+  });
+  const glowOpacity = pulseProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.42, 0.78],
+  });
+  const particleOffset = particleProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [5, -7],
+  });
+
+  const handleActionPress = () => {
+    onChargeChange(!isCharging).catch(() => undefined);
+  };
+
+  return (
+    <View style={styles.heroSection}>
+      <View style={styles.heroOrbit}>
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.heroGlow,
+            { backgroundColor: glowColor },
+            isEnergyActive && {
+              opacity: glowOpacity,
+              transform: [{ scale: glowScale }],
+            },
+          ]}
+        />
+
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.heroEnergyRing,
+            { transform: [{ rotate: ringRotate }] },
+          ]}
+        >
+          <Svg width="100%" height="100%" viewBox="0 0 240 240">
+            <Defs>
+              <LinearGradient
+                id="heroEnergyGradient"
+                x1="0"
+                y1="0"
+                x2="1"
+                y2="1"
+              >
+                <Stop offset="0" stopColor={accentColor} />
+                <Stop offset="1" stopColor={secondaryColor} />
+              </LinearGradient>
+            </Defs>
+            <Circle
+              cx="120"
+              cy="120"
+              r="110"
+              fill="none"
+              stroke="#E3E9E5"
+              strokeWidth="3"
+            />
+            <Circle
+              cx="120"
+              cy="120"
+              r="110"
+              fill="none"
+              opacity={isEnergyActive ? 1 : 0.72}
+              stroke="url(#heroEnergyGradient)"
+              strokeWidth={isEnergyActive ? 6 : 4}
+              strokeDasharray={isEnergyActive ? '30 14' : '690 1'}
+              strokeLinecap="round"
+            />
+          </Svg>
+        </Animated.View>
+
+        {isEnergyActive ? (
+          <>
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                styles.heroParticle,
+                styles.heroParticleOne,
+                {
+                  backgroundColor: accentColor,
+                  transform: [{ translateY: particleOffset }],
+                },
+              ]}
+            />
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                styles.heroParticle,
+                styles.heroParticleTwo,
+                {
+                  backgroundColor: secondaryColor,
+                  transform: [{ translateY: particleOffset }],
+                },
+              ]}
+            />
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                styles.heroParticle,
+                styles.heroParticleThree,
+                {
+                  backgroundColor: accentColor,
+                  transform: [{ translateY: particleOffset }],
+                },
+              ]}
+            />
+          </>
+        ) : null}
+
+        <View style={styles.heroCircle}>
+          <View style={styles.heroStatusArea}>
+            <AppText
+              semibold
+              centered
+              label="CHARGER STATUS"
+              style={styles.heroEyebrow}
+            />
+            <AppText
+              bold
+              centered
+              numberOfLines={2}
+              adjustsFontSizeToFit
+              minimumFontScale={0.78}
+              label={heroStatus}
+              style={[styles.heroStatusText, { color: accentColor }]}
+            />
+          </View>
+
+          <View style={styles.heroDivider} />
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={isCharging ? 'Stop charging' : 'Start charging'}
+            accessibilityState={{ disabled: !canControl, busy: isPublishing }}
+            disabled={!canControl || isPublishing}
+            onPress={handleActionPress}
+            style={({ pressed }) => [
+              styles.heroAction,
+              (!canControl || isPublishing) && styles.heroActionDisabled,
+              pressed && styles.heroActionPressed,
+            ]}
+          >
+            {SHOW_HERO_ACTION_ICON ? (
+              <Animated.View
+                style={[
+                  styles.heroActionIcon,
+                  { backgroundColor: `${actionColor}18` },
+                  isEnergyActive && {
+                    transform: [{ translateY: particleOffset }],
+                  },
+                ]}
+              >
+                <ActionIcon
+                  color={actionColor}
+                  width={styles.heroActionSvg.width}
+                  height={styles.heroActionSvg.height}
+                />
+              </Animated.View>
+            ) : null}
+            <AppText
+              semibold
+              centered
+              label={
+                isPublishing
+                  ? 'SENDING COMMAND'
+                  : isCharging
+                  ? 'STOP CHARGING'
+                  : 'START CHARGING'
+              }
+              style={[styles.heroActionLabel, { color: actionColor }]}
+            />
+          </Pressable>
+        </View>
+      </View>
+    </View>
+  );
+};
 
 export const Dashboard = () => {
   const {
@@ -238,6 +544,7 @@ export const Dashboard = () => {
     isSwiping,
     swipeGesture,
     swipePosition,
+    handleChargeChange,
     currentControl,
   } = useDashboard();
   const { phaseParameters, telemetry } = dashboard;
@@ -290,43 +597,54 @@ export const Dashboard = () => {
     >
       <StatusBar barStyle="dark-content" backgroundColor="transparent" />
 
+      <View style={styles.topBar}>
+        {dashboard.hasFault ? (
+          <Pressable
+            hitSlop={8}
+            style={styles.iconButton}
+            accessibilityRole="button"
+            onPress={handleAlertsPress}
+            accessibilityLabel="Open charger alerts"
+          >
+            <Animated.View style={{ transform: [{ scale: alertPulseScale }] }}>
+              <Svgs.Alert width={25} height={25} />
+            </Animated.View>
+          </Pressable>
+        ) : (
+          <View style={[styles.iconButton, styles.hiddenIconButton]} />
+        )}
+
+        <Image
+          resizeMode="contain"
+          style={styles.brandLogo}
+          source={images.headerLogo}
+        />
+
+        <View style={[styles.iconButton, styles.hiddenIconButton]} />
+      </View>
+
       <ScrollView
+        style={styles.scrollView}
         bounces={false}
         scrollEnabled={!isSwiping}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
       >
-        <View style={styles.topBar}>
-          {dashboard.hasFault ? (
-            <Pressable
-              hitSlop={8}
-              style={styles.iconButton}
-              accessibilityRole="button"
-              onPress={handleAlertsPress}
-              accessibilityLabel="Open charger alerts"
-            >
-              <Animated.View
-                style={{ transform: [{ scale: alertPulseScale }] }}
-              >
-                <Svgs.Alert width={25} height={25} />
-              </Animated.View>
-            </Pressable>
-          ) : (
-            <View style={[styles.iconButton, styles.hiddenIconButton]} />
-          )}
+        <ChargingHero
+          styles={styles}
+          isCharging={isCharging}
+          hasFault={dashboard.hasFault}
+          canControl={dashboard.canControl}
+          isConnected={dashboard.isConnected}
+          isPublishing={dashboard.isPublishing}
+          cpStatus={telemetry.cpStatus}
+          statusText={telemetry.cpStatusText}
+          onChargeChange={handleChargeChange}
+        />
 
-          <Image
-            resizeMode="contain"
-            style={styles.brandLogo}
-            source={images.headerLogo}
-          />
+        {/* <View style={styles.heroSpace} /> */}
 
-          <View style={[styles.iconButton, styles.hiddenIconButton]} />
-        </View>
-
-        <View style={styles.heroSpace} />
-
-        <View
+        {/* <View
           style={[
             styles.connectionPill,
             !dashboard.isConnected && styles.connectionPillDisconnected,
@@ -346,7 +664,7 @@ export const Dashboard = () => {
               !dashboard.isConnected && styles.connectionTextDisconnected,
             ]}
           />
-        </View>
+        </View> */}
 
         <View style={styles.statusCardShadow}>
           <View style={styles.statusCardShell}>

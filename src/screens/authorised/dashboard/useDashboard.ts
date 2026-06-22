@@ -662,6 +662,7 @@ export const useDashboard = () => {
     isSwiping,
     swipePosition,
     swipeGesture,
+    handleChargeChange,
     handleTrackLayout,
     handleAlertsPress,
     handleRetry,
