@@ -19,6 +19,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 interface AuthorisedScreenProps {
   children: ReactNode;
   contentStyle?: StyleProp<ViewStyle>;
+  fixedContent?: ReactNode;
+  fixedContentStyle?: StyleProp<ViewStyle>;
   showBackButton?: boolean;
   roundedHeader?: boolean;
   refreshControl?: ReactElement<RefreshControlProps>;
@@ -27,6 +29,8 @@ interface AuthorisedScreenProps {
 export const AuthorisedScreen = ({
   children,
   contentStyle,
+  fixedContent,
+  fixedContentStyle,
   showBackButton = false,
   roundedHeader = false,
   refreshControl,
@@ -64,6 +68,12 @@ export const AuthorisedScreen = ({
           style={styles.brandLogo}
         />
       </View>
+
+      {fixedContent ? (
+        <View style={[styles.fixedContentContainer, fixedContentStyle]}>
+          {fixedContent}
+        </View>
+      ) : null}
 
       <KeyboardAvoider
         refreshControl={refreshControl}
@@ -126,6 +136,11 @@ const useStyles = () => {
       backgroundColor: '#FFFFFF',
       paddingTop: moderateHeight(3),
       paddingBottom: moderateHeight(4),
+      paddingHorizontal: moderateWidth(6),
+    },
+    fixedContentContainer: {
+      backgroundColor: '#FFFFFF',
+      paddingTop: moderateHeight(2.6),
       paddingHorizontal: moderateWidth(6),
     },
   });

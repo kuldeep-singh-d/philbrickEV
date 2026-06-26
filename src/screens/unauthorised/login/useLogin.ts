@@ -2,11 +2,11 @@ import { routes } from '@routes';
 import { useStyles } from './styles';
 import { login } from '@store/slices/auth/login';
 import { useDispatch, useSelector } from '@hooks';
+import { getApiFieldError } from '@utils/apiError';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
-import { setLoginState } from '@store/slices/localStates/loginState';
-import { getApiFieldError } from '@utils/apiError';
 import { getMobileDeviceDescriptor } from '@utils/mobileDevice';
+import { setLoginState } from '@store/slices/localStates/loginState';
 
 export const useLogin = () => {
   const styles = useStyles();
@@ -14,8 +14,7 @@ export const useLogin = () => {
   const loginResponse = useSelector(state => state.login);
 
   const navigation: any = useNavigation();
-  // Dummy Credes: kuldeep@email.com || P@ssw0rd
-  const [identifier, setIdentifier] = useState('kuldeep@email.com');
+  const [identifier, setIdentifier] = useState('ksdahiya5085@gmail.com');
   const [password, setPassword] = useState('P@ssw0rd');
   const [identifierError, setIdentifierError] = useState('');
   const [passwordError, setPasswordError] = useState('');

@@ -17,6 +17,7 @@ export const apiRoutes = {
   logout: '/api/v1/auth/logout',
   logoutAll: '/api/v1/auth/logout-all',
   devices: '/api/v1/devices',
+  chargingSessionsList: '/api/v1/charging-sessions',
   chargingSessions: (deviceId: string | number) =>
     `/api/v1/devices/${encodeURIComponent(String(deviceId))}/charging-sessions`,
 };

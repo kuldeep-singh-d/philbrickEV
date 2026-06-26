@@ -17,6 +17,7 @@ interface ApiMiddlewareArgs {
 // Define common types for action payloads and request options
 interface ApiCallPayload {
   data?: any;
+  params?: Record<string, unknown>;
   url: string;
   method: string;
   onStart?: string;
@@ -32,6 +33,7 @@ interface ApiCallPayload {
 
 interface AxiosRequestConfig {
   data?: any;
+  params?: Record<string, unknown>;
   url: string;
   method: string;
   baseURL?: string;
@@ -50,6 +52,7 @@ const api =
     const {
       url,
       data,
+      params,
       method,
       onStart,
       onReset,
@@ -87,6 +90,7 @@ const api =
     const requestConfig: AxiosRequestConfig = {
       url,
       data,
+      params,
       method,
       headers,
       timeout: 30000,

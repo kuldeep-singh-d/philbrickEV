@@ -810,7 +810,7 @@ export const Dashboard = () => {
           <CurrentControl currentControl={currentControl} style={styles} />
         </View>
 
-        {/* <View
+        <View
           style={[
             styles.swipeContainer,
             !dashboard.canControl && styles.controlDisabled,
@@ -884,7 +884,7 @@ export const Dashboard = () => {
               </View>
             </GestureDetector>
           </View>
-        </View> */}
+        </View>
 
         {/* {dashboard.commandFeedback ? (
           <AppText
