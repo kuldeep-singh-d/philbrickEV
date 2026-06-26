@@ -52,7 +52,10 @@ class MqttClientModule(private val reactContext: ReactApplicationContext) :
         disconnectSocket()
 
         val host = options.getString("host") ?: error("Missing MQTT host")
-        val port = if (options.hasKey("port")) options.getInt("port") else 8883
+        val port = if (options.hasKey("port")) options.getInt("port") else error("Missing MQTT port")
+        if (port <= 0) {
+          error("Invalid MQTT port")
+        }
         val clientId = options.getStringOrNull("clientId").takeUnless { it.isNullOrBlank() }
           ?: createMqttClientId()
         val cleanSession = !options.hasKey("cleanSession") || options.getBoolean("cleanSession")

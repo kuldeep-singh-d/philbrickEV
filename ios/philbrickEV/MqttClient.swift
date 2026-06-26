@@ -33,7 +33,9 @@ class MqttClient: RCTEventEmitter {
         guard let host = options["host"] as? String, !host.isEmpty else {
           throw MqttError.missingOption("host")
         }
-        let port = options["port"] as? Int ?? 8883
+        guard let port = options["port"] as? Int, port > 0 else {
+          throw MqttError.missingOption("port")
+        }
         let clientId = (options["clientId"] as? String).flatMap {
           $0.isEmpty ? nil : $0
         } ?? self.createMqttClientId()

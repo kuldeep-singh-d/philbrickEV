@@ -10,11 +10,12 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 //local imports
 import { useEffect, useMemo } from 'react';
-import { useSelector } from '@hooks';
+import { useDispatch, useSelector } from '@hooks';
 import { colors } from '@assets/colors';
 import { Authorised } from './authorised';
 import { ToastMessage } from '@components';
 import { Unauthorised } from './unauthorised';
+import { fetchCertificates } from '@store/slices/certificates/certificates';
 import {
   flushNotificationNavigation,
   navigationRef,
@@ -33,8 +34,14 @@ const darkTheme: Theme = {
 };
 
 const Navigation = () => {
+  const dispatch = useDispatch();
   const { status } = useSelector((state: any) => state?.loginState);
   const currentTheme = useSelector((state: any) => state?.appTheme?.data);
+  const loginToken = useSelector(
+    (state: any) =>
+      state?.login?.data?.data?.token || state?.register?.data?.data?.token,
+  );
+  const certificates = useSelector((state: any) => state?.certificates);
 
   const theme = useMemo(() => {
     const isDark = currentTheme === 'dark';
@@ -44,6 +51,34 @@ const Navigation = () => {
   useEffect(() => {
     flushNotificationNavigation();
   }, [status]);
+
+  useEffect(() => {
+    const certificatesReady = Boolean(
+      certificates?.data &&
+        (certificates?.mqttConfig || certificates?.mqttConfigError),
+    );
+
+    if (
+      !status ||
+      !loginToken ||
+      certificates?.loading ||
+      certificates?.error ||
+      certificatesReady
+    ) {
+      return;
+    }
+
+    dispatch(fetchCertificates());
+  }, [
+    certificates?.data,
+    certificates?.loading,
+    certificates?.error,
+    certificates?.mqttConfig,
+    certificates?.mqttConfigError,
+    dispatch,
+    loginToken,
+    status,
+  ]);
 
   return (
     <SafeAreaProvider>

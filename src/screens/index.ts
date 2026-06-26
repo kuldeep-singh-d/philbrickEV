@@ -13,3 +13,4 @@ export * from './authorised/chargingHistory';
 export * from './authorised/addDevice';
 export * from './authorised/selecetDevice';
 export * from './authorised/updatedPassword';
+export * from './authorised/apiTest';

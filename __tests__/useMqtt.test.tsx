@@ -4,6 +4,7 @@ import { NativeModules } from 'react-native';
 
 import { useMqtt } from '../src/hooks/useMqtt';
 import { stopMqttConnection } from '../src/mqtt/mqttClient';
+import type { MqttConfig } from '../src/mqtt/mqttConfig';
 
 const nativeModules = NativeModules as {
   MqttClient?: {
@@ -13,6 +14,19 @@ const nativeModules = NativeModules as {
     subscribe: jest.Mock;
     unsubscribe: jest.Mock;
   };
+};
+
+const enabledConfig: MqttConfig = {
+  enabled: true,
+  host: 'mqtt.example.com',
+  port: 8883,
+  clientId: 'test-client',
+  cleanSession: true,
+  keepAliveSeconds: 60,
+  certificate: {
+    certificateName: 'client.p12',
+    certificatePassword: 'password',
+  },
 };
 
 describe('useMqtt automatic connection flow', () => {
@@ -46,6 +60,7 @@ describe('useMqtt automatic connection flow', () => {
 
     const Harness = () => {
       mqttState = useMqtt({
+        config: enabledConfig,
         autoConnect: true,
         autoSubscribeTopics: ['status', 'error'],
         autoRetryCount: 2,

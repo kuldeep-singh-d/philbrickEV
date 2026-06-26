@@ -95,6 +95,12 @@ export const useDashboard = () => {
   const isFocused = useIsFocused();
   const { moderateWidth } = useDeviceDimensions();
   const selectedDevice = useSelector(state => state.selectedDevice.data);
+  const dynamicMqttConfig = useSelector(
+    state => state.certificates.mqttConfig,
+  );
+  const mqttConfigError = useSelector(
+    state => state.certificates.mqttConfigError,
+  );
   const selectedDeviceId = selectDeviceMqttTopic(selectedDevice);
   const sessionDeviceId = useMemo(
     () => getSessionDeviceId(selectedDevice as Record<string, unknown> | null),
@@ -109,7 +115,8 @@ export const useDashboard = () => {
     [topics],
   );
   const mqtt = useMqtt({
-    autoConnect: Boolean(topics),
+    config: dynamicMqttConfig,
+    autoConnect: Boolean(topics && dynamicMqttConfig?.enabled),
     autoSubscribeTopics: subscriptionTopics,
     autoRetryCount: 2,
     disconnectOnUnmount: true,
@@ -184,6 +191,18 @@ export const useDashboard = () => {
       sessionTimerRef.current = null;
     }
   }, [selectedDeviceId, setCurrentValue]);
+
+  useEffect(() => {
+    if (!mqttConfigError) {
+      return;
+    }
+
+    console.warn('[MQTT] dynamic config unavailable for dashboard', {
+      error: mqttConfigError,
+    });
+    setCommandFeedbackIsError(true);
+    setCommandFeedback(mqttConfigError);
+  }, [mqttConfigError]);
 
   useEffect(() => {
     if (

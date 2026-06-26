@@ -16,14 +16,14 @@ export type MqttConfig = {
 };
 
 export const mqttConfig: MqttConfig = {
-  enabled: true,
-  host: 'broker.philbrickindia.com',
-  port: 8883,
+  enabled: false,
+  host: '',
+  port: 0,
   clientId: 'philbrickEV-mobile',
   cleanSession: true,
   keepAliveSeconds: 60,
   certificate: {
-    certificateName: 'client_identity.p12',
-    certificatePassword: '123456',
+    certificateName: '',
+    certificatePassword: '',
   },
 };

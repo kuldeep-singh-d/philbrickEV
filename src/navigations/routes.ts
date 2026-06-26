@@ -15,5 +15,6 @@ export const routes = Object.freeze({
     chargingHistory: 'chargingHistory',
     selectDevice: 'selectDevice',
     updatePassword: 'updatePassword',
+    apiTest: 'apiTest',
   },
 });

@@ -55,6 +55,10 @@ export const useSettings = () => {
     navigation.navigate(routes.app.updatePassword);
   }, [navigation]);
 
+  const handleApiTest = useCallback(() => {
+    navigation.navigate(routes.app.apiTest);
+  }, [navigation]);
+
   const handleFirmwareUpdate = useCallback(() => {
     show.warn('Device firmware update will be available soon.');
   }, []);
@@ -113,6 +117,7 @@ export const useSettings = () => {
       { title: 'Select Device', onPress: handleSelectDevice },
       { title: 'Update Password', onPress: handleUpdatePassword },
       { title: 'Device Firmware update', onPress: handleFirmwareUpdate },
+      { title: 'API Test', onPress: handleApiTest },
       {
         title: 'Logout',
         onPress: handleLogout,
@@ -121,6 +126,7 @@ export const useSettings = () => {
       },
     ],
     [
+      handleApiTest,
       handleAddDevice,
       handleFirmwareUpdate,
       handleLogout,

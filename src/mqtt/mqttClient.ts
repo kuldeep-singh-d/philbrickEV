@@ -251,10 +251,11 @@ export function startMqttConnection(
   | { connected: boolean; clientId?: string }
   | { connected: false; skipped: true }
 > {
-  if (!config.enabled || !config.host) {
+  if (!config.enabled || !config.host || !config.port) {
     console.log('[MQTT] connection skipped', {
       enabled: config.enabled,
       hasHost: Boolean(config.host),
+      port: config.port,
     });
     return Promise.resolve({ connected: false, skipped: true });
   }
