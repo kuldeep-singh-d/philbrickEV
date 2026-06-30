@@ -6,9 +6,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useDeviceDimensions, useDispatch, useMqtt, useSelector } from '@hooks';
 import { show } from '@utils/helpers';
+import { getApiErrorMessage } from '@utils/apiError';
 import { apiCallBegan } from '@store/apiActions';
 import { apiRoutes, methods } from '@store/apiRoutes';
 import { selectDeviceMqttTopic } from '@store/slices/devices/devices';
+import { fetchCertificates } from '@store/slices/certificates/certificates';
 import {
   getMqttErrorDetails,
   getMqttUserMessage,
@@ -98,6 +100,8 @@ export const useDashboard = () => {
   const dynamicMqttConfig = useSelector(
     state => state.certificates.mqttConfig,
   );
+  const certificatesLoading = useSelector(state => state.certificates.loading);
+  const certificatesError = useSelector(state => state.certificates.error);
   const mqttConfigError = useSelector(
     state => state.certificates.mqttConfigError,
   );
@@ -490,8 +494,14 @@ export const useDashboard = () => {
     setCommandFeedback('');
     setCommandFeedbackIsError(false);
     setChargerError('');
+
+    if (!dynamicMqttConfig && !certificatesLoading) {
+      dispatch(fetchCertificates());
+      return;
+    }
+
     retry();
-  }, [retry]);
+  }, [certificatesLoading, dispatch, dynamicMqttConfig, retry]);
 
   const adjustCurrent = useCallback(
     async (change: number) => {
@@ -661,13 +671,27 @@ export const useDashboard = () => {
     ],
   );
 
+  const certificateConnectionError =
+    !dynamicMqttConfig && certificatesError
+      ? getApiErrorMessage(
+          certificatesError,
+          'Unable to load MQTT configuration. Please try again.',
+        )
+      : '';
   const connectionError = !topics
     ? 'Select a charger to connect to live data.'
+    : certificateConnectionError
+    ? certificateConnectionError
+    : mqttConfigError
+    ? mqttConfigError
     : mqtt.status === 'error' && !mqtt.isInitializing
     ? mqtt.error ||
       'Unable to connect to the selected charger. Please try again.'
     : '';
-  const connectionLabel = mqtt.isInitializing
+  const connectionLabel =
+    certificatesLoading && !dynamicMqttConfig
+      ? 'Preparing connection...'
+      : mqtt.isInitializing
     ? 'Connecting...'
     : mqtt.isConnected
     ? 'Connected'
@@ -698,7 +722,8 @@ export const useDashboard = () => {
       telemetry,
       phaseParameters,
       isConnected: mqtt.isConnected,
-      isLoading: mqtt.isInitializing,
+      isLoading:
+        mqtt.isInitializing || (certificatesLoading && !dynamicMqttConfig),
       connectionLabel,
       connectionError,
       chargerError,

@@ -106,6 +106,7 @@ export const useSettings = () => {
           logoutRequestRef.current = true;
           dispatch(clearLogoutResponse());
           dispatch(logout());
+          dispatch(setLoginState(true));
         },
       },
     ]);

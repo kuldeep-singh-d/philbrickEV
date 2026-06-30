@@ -99,8 +99,10 @@ export const useApiTest = () => {
   const certificates = useSelector(state => state.certificates);
 
   useEffect(() => {
-    dispatch(fetchCertificates());
-  }, [dispatch]);
+    if (!certificates.data && !certificates.loading) {
+      dispatch(fetchCertificates());
+    }
+  }, [certificates.data, certificates.loading, dispatch]);
 
   const items = useMemo(
     () =>

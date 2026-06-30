@@ -7,16 +7,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { getMobileDeviceDescriptor } from '@utils/mobileDevice';
 import { setLoginState } from '@store/slices/localStates/loginState';
-import {
-  clearCertificates,
-  fetchCertificates,
-} from '@store/slices/certificates/certificates';
 
 export const useLogin = () => {
   const styles = useStyles();
   const dispatch = useDispatch();
   const loginResponse = useSelector(state => state.login);
-  const certificatesResponse = useSelector(state => state.certificates);
 
   const navigation: any = useNavigation();
   const [identifier, setIdentifier] = useState('ksdahiya5085@gmail.com');
@@ -32,29 +27,8 @@ export const useLogin = () => {
       return;
     }
 
-    const certificatesReady = Boolean(
-      certificatesResponse.data &&
-        (certificatesResponse.mqttConfig || certificatesResponse.mqttConfigError),
-    );
-
-    if (
-      !certificatesReady &&
-      !certificatesResponse.loading &&
-      !certificatesResponse.error
-    ) {
-      dispatch(fetchCertificates());
-    }
-
     dispatch(setLoginState(true));
-  }, [
-    certificatesResponse.data,
-    certificatesResponse.loading,
-    certificatesResponse.error,
-    certificatesResponse.mqttConfig,
-    certificatesResponse.mqttConfigError,
-    dispatch,
-    loginResponse.data,
-  ]);
+  }, [dispatch, loginResponse.data]);
 
   useEffect(() => {
     if (!loginResponse.error) {
@@ -93,7 +67,6 @@ export const useLogin = () => {
 
     try {
       const device = await getMobileDeviceDescriptor();
-      dispatch(clearCertificates());
       dispatch(login({ identifier: normalizedIdentifier, password, device }));
     } finally {
       setPreparingDevice(false);
@@ -115,9 +88,7 @@ export const useLogin = () => {
       password,
       identifierError,
       passwordError,
-      loading: Boolean(
-        loginResponse.loading || certificatesResponse.loading || preparingDevice,
-      ),
+      loading: Boolean(loginResponse.loading || preparingDevice),
     },
     handlers: {
       setIdentifier,

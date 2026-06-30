@@ -42,6 +42,7 @@ type CertificatesState = {
   certificateFiles: CertificateFileMetadata[];
   mqttConfig: MqttConfig | undefined;
   mqttConfigError: string;
+  lastFetchedAt: number | undefined;
 };
 
 const initialState: CertificatesState = {
@@ -57,7 +58,15 @@ const initialState: CertificatesState = {
   certificateFiles: [],
   mqttConfig: undefined,
   mqttConfigError: '',
+  lastFetchedAt: undefined,
 };
+
+export const CERTIFICATES_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+
+export const isCertificatesCacheStale = (
+  lastFetchedAt?: number,
+  now = Date.now(),
+) => !lastFetchedAt || now - lastFetchedAt > CERTIFICATES_CACHE_TTL_MS;
 
 const getString = (source: Record<string, unknown>, keys: string[]) => {
   for (const key of keys) {
@@ -216,6 +225,7 @@ const slice = createSlice({
       );
       state.mqttConfig = mqttResult.config;
       state.mqttConfigError = mqttResult.error;
+      state.lastFetchedAt = Date.now();
       state.loading = false;
       state.error = undefined;
     },
@@ -251,6 +261,7 @@ const slice = createSlice({
       state.certificateFiles = [];
       state.mqttConfig = undefined;
       state.mqttConfigError = '';
+      state.lastFetchedAt = undefined;
     },
   },
 });
@@ -274,6 +285,7 @@ export const fetchCertificates = () =>
     onFailed: failed.type,
     onStart: requested.type,
     onSuccess: success.type,
+    dedupe: true,
   });
 
 export const fetchCertificateDetail =

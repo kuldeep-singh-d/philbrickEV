@@ -23,6 +23,7 @@ interface Props {
   onFileSuccess?: string;
   isRowData?: boolean;
   headers?: Record<string, string>;
+  dedupe?: boolean;
 }
 
 // root action creators

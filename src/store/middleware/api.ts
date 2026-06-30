@@ -29,6 +29,7 @@ interface ApiCallPayload {
   authHeader?: boolean;
   isUrlencoded?: boolean;
   headers?: Record<string, string>;
+  dedupe?: boolean;
 }
 
 interface AxiosRequestConfig {
@@ -42,6 +43,22 @@ interface AxiosRequestConfig {
 }
 
 type StoreState = any;
+
+const inFlightRequestKeys = new Set<string>();
+
+const buildRequestKey = (config: AxiosRequestConfig) => {
+  try {
+    return JSON.stringify({
+      baseURL: config.baseURL,
+      url: config.url,
+      method: config.method,
+      params: config.params,
+      data: config.data,
+    });
+  } catch {
+    return `${config.method}:${config.baseURL}:${config.url}`;
+  }
+};
 
 const api =
   ({ dispatch, getState }: ApiMiddlewareArgs) =>
@@ -59,14 +76,13 @@ const api =
       onFailed,
       onSuccess,
       headers: extraHeaders,
+      dedupe = false,
       isRowData = false,
     }: ApiCallPayload = action.payload;
 
-    if (onStart) dispatch({ type: onStart });
-    next(action);
-
     if (!url) {
       // console.warn('[API Middleware] No URL provided.');
+      next(action);
       return;
     }
 
@@ -96,6 +112,20 @@ const api =
       timeout: 30000,
       baseURL,
     };
+
+    const requestKey = dedupe ? buildRequestKey(requestConfig) : '';
+
+    if (requestKey && inFlightRequestKeys.has(requestKey)) {
+      return;
+    }
+
+    if (requestKey) {
+      inFlightRequestKeys.add(requestKey);
+    }
+
+    if (onStart) dispatch({ type: onStart });
+    next(action);
+
     try {
       const response = await axios.request(requestConfig);
       const responseData = response?.data;
@@ -160,6 +190,10 @@ const api =
       }
 
       dispatch(handalLoading(false));
+    } finally {
+      if (requestKey) {
+        inFlightRequestKeys.delete(requestKey);
+      }
     }
   };
 

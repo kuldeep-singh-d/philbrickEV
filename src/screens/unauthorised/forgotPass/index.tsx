@@ -51,6 +51,7 @@ export const ForgotPass = () => {
               loader={states.loading}
               style={styles.sendButton}
               onPress={handlers.handleGetOtp}
+              // disabled={states.loading}
               disabled={states.loading || !states.canRequestOtp}
             />
           )}

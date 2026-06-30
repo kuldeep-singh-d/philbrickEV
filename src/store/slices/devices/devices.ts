@@ -19,6 +19,7 @@ const slice = createSlice({
     data: undefined as any | undefined,
     loading: false,
     error: undefined as any | undefined,
+    lastFetchedAt: undefined as number | undefined,
   },
   reducers: {
     requested: state => {
@@ -29,9 +30,9 @@ const slice = createSlice({
       state.data = action.payload;
       state.loading = false;
       state.error = undefined;
+      state.lastFetchedAt = Date.now();
     },
     failed: (state, action) => {
-      state.data = undefined;
       state.loading = false;
       state.error = action.payload;
     },
@@ -39,6 +40,7 @@ const slice = createSlice({
       state.data = undefined;
       state.loading = false;
       state.error = undefined;
+      state.lastFetchedAt = undefined;
     },
   },
 });
@@ -54,6 +56,7 @@ export const fetchDevices = () =>
     onFailed: failed.type,
     onStart: requested.type,
     onSuccess: success.type,
+    dedupe: true,
   });
 
 export const clearDevicesResponse = () => reset();
@@ -76,3 +79,10 @@ export const selectDeviceMqttTopic = (device?: Device | null) => {
 
   return typeof topic === 'string' ? topic.trim() : '';
 };
+
+export const DEVICE_LIST_CACHE_TTL_MS = 5 * 60 * 1000;
+
+export const isDeviceListCacheStale = (
+  lastFetchedAt?: number,
+  now = Date.now(),
+) => !lastFetchedAt || now - lastFetchedAt > DEVICE_LIST_CACHE_TTL_MS;

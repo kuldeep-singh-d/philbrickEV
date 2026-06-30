@@ -15,7 +15,10 @@ import { colors } from '@assets/colors';
 import { Authorised } from './authorised';
 import { ToastMessage } from '@components';
 import { Unauthorised } from './unauthorised';
-import { fetchCertificates } from '@store/slices/certificates/certificates';
+import {
+  fetchCertificates,
+  isCertificatesCacheStale,
+} from '@store/slices/certificates/certificates';
 import {
   flushNotificationNavigation,
   navigationRef,
@@ -58,19 +61,22 @@ const Navigation = () => {
         (certificates?.mqttConfig || certificates?.mqttConfigError),
     );
 
-    if (
-      !status ||
-      !loginToken ||
-      certificates?.loading ||
-      certificates?.error ||
-      certificatesReady
-    ) {
+    const certificatesStale = isCertificatesCacheStale(
+      certificates?.lastFetchedAt,
+    );
+
+    if (!status || !loginToken || certificates?.loading || certificates?.error) {
+      return;
+    }
+
+    if (certificatesReady && !certificatesStale) {
       return;
     }
 
     dispatch(fetchCertificates());
   }, [
     certificates?.data,
+    certificates?.lastFetchedAt,
     certificates?.loading,
     certificates?.error,
     certificates?.mqttConfig,

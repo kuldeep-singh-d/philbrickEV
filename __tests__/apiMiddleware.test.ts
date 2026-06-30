@@ -52,4 +52,22 @@ describe('API middleware auth errors', () => {
       payload: response,
     });
   });
+
+  it('passes local state actions without URLs to the next middleware', async () => {
+    const action = apiCallBegan({
+      data: true as any,
+      onChange: 'login-state/onChange',
+    });
+    const dispatch = jest.fn();
+    const next = jest.fn();
+    const run = api({
+      dispatch,
+      getState: () => ({}),
+    } as any)(next);
+
+    await run(action);
+
+    expect(next).toHaveBeenCalledWith(action);
+    expect(mockedAxios.request).not.toHaveBeenCalled();
+  });
 });

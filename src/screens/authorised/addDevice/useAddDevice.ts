@@ -9,6 +9,7 @@ import {
   clearCreateDeviceResponse,
   createDevice,
 } from '@store/slices/devices/createDevice';
+import { fetchDevices } from '@store/slices/devices/devices';
 
 import useStyles from './styles';
 
@@ -35,6 +36,7 @@ export const useAddDevice = () => {
     show.success(
       createDeviceResponse.data?.message || 'Device registered successfully.',
     );
+    dispatch(fetchDevices());
     dispatch(clearCreateDeviceResponse());
     navigation.navigate(routes.app.selectDevice);
   }, [createDeviceResponse.data, dispatch, navigation]);
