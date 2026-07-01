@@ -14,6 +14,16 @@ import { getApiErrorMessage } from '@utils/apiError';
 
 import useStyles from './styles';
 
+export const shouldFetchDeviceListOnFocus = ({
+  loading,
+  lastFetchedAt,
+  now = Date.now(),
+}: {
+  loading: boolean;
+  lastFetchedAt?: number;
+  now?: number;
+}) => !loading && isDeviceListCacheStale(lastFetchedAt, now);
+
 export const useSelectDevice = () => {
   const styles = useStyles();
   const dispatch = useDispatch();
@@ -31,16 +41,15 @@ export const useSelectDevice = () => {
 
   useFocusEffect(
     useCallback(() => {
-      const hasCachedDevices = devices.length > 0;
-      const shouldRefresh =
-        !devicesLoadingRef.current &&
-        (!hasCachedDevices ||
-          isDeviceListCacheStale(devicesResponse.lastFetchedAt));
+      const shouldRefresh = shouldFetchDeviceListOnFocus({
+        loading: devicesLoadingRef.current,
+        lastFetchedAt: devicesResponse.lastFetchedAt,
+      });
 
       if (shouldRefresh) {
         dispatch(fetchDevices());
       }
-    }, [devices.length, devicesResponse.lastFetchedAt, dispatch]),
+    }, [devicesResponse.lastFetchedAt, dispatch]),
   );
 
   const handleRefresh = useCallback(() => {

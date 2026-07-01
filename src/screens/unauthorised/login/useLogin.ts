@@ -14,8 +14,8 @@ export const useLogin = () => {
   const loginResponse = useSelector(state => state.login);
 
   const navigation: any = useNavigation();
-  const [identifier, setIdentifier] = useState('ksdahiya5085@gmail.com');
-  const [password, setPassword] = useState('P@ssw0rd');
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
   const [identifierError, setIdentifierError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [preparingDevice, setPreparingDevice] = useState(false);

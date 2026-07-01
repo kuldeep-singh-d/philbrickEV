@@ -1,9 +1,11 @@
 import { createDevice } from '../src/store/slices/devices/createDevice';
 import {
   fetchDevices,
+  failed,
   selectDeviceMqttTopic,
   selectDevices,
 } from '../src/store/slices/devices/devices';
+import reducer from '../src/store/slices/devices/devices';
 import { forgotPassword } from '../src/store/slices/auth/forgotPassword';
 import { verifyOtp } from '../src/store/slices/auth/verifyOtp';
 import { resetPassword } from '../src/store/slices/auth/resetPassword';
@@ -41,7 +43,32 @@ describe('settings API actions', () => {
     expect(selectDevices({ data: devices })).toEqual(devices);
     expect(selectDevices({ data: { devices } })).toEqual(devices);
     expect(selectDevices({ data: { data: devices } })).toEqual(devices);
+    expect(selectDevices({ data: { devices: { data: devices } } })).toEqual(
+      devices,
+    );
+    expect(
+      selectDevices({ data: { data: { devices: { data: devices } } } }),
+    ).toEqual(devices);
+    expect(selectDevices({ data: { chargers: { data: devices } } })).toEqual(
+      devices,
+    );
+    expect(selectDevices({ data: { results: devices } })).toEqual(devices);
     expect(selectDevices(devices)).toEqual(devices);
+    expect(
+      selectDevices({
+        message: 'Rate limit exceeded',
+        errors: { message: ['Too many attempts'] },
+      }),
+    ).toEqual([]);
+  });
+
+  it('records failed device fetch time to avoid automatic retry loops', () => {
+    const before = Date.now();
+    const state = reducer(undefined, failed({ message: 'Rate limit exceeded' }));
+
+    expect(state.loading).toBe(false);
+    expect(state.error).toEqual({ message: 'Rate limit exceeded' });
+    expect(state.lastFetchedAt).toBeGreaterThanOrEqual(before);
   });
 
   it('uses the selected device ID as its MQTT topic', () => {

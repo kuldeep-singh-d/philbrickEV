@@ -17,7 +17,11 @@ import { Svgs } from '@assets/svgs';
 import { AppButton, AppText, Loader } from '@components';
 import { images } from '@assets/imgaes';
 import { useDashboard } from './useDashboard';
-import { formatMetric, type PhaseName } from './dashboardData';
+import {
+  formatMetric,
+  isCpStatusChargingActive,
+  type PhaseName,
+} from './dashboardData';
 import Svg, {
   Circle,
   Defs,
@@ -163,7 +167,7 @@ const CurrentControl = ({ currentControl, style }: CurrentControlProps) => {
             height={style.metricIcon.height}
           />
         </View>
-        <AppText medium label="Current (A)" style={style.metricLabel} />
+        <AppText medium label="Set Current (A)" style={style.metricLabel} />
       </View>
       <View style={style.currentControlRow}>
         <Pressable
@@ -251,15 +255,15 @@ const ChargingHero = ({
   const ringRotation = useRef(new Animated.Value(0)).current;
   const pulseProgress = useRef(new Animated.Value(0)).current;
   const particleProgress = useRef(new Animated.Value(0)).current;
-  const isEnergyActive = cpStatus === 2 || cpStatus === 5;
-  const isError = isConnected && (hasFault || cpStatus === 4 || cpStatus === 7);
-  const isVentilation = cpStatus === 2;
-  const isFinished = cpStatus === 6;
+  const isEnergyActive = isCpStatusChargingActive(cpStatus);
+  const isError = isConnected && (hasFault || cpStatus === 6);
+  const isVentilation = cpStatus === 4;
+  const isFinished = cpStatus === 5;
   const heroStatus = !isConnected
     ? 'NOT CONNECTED'
     : cpStatus === undefined
     ? 'CONNECTED'
-    : cpStatus === 1
+    : cpStatus === 2
     ? 'CONNECTED'
     : statusText;
   const accentColor = isError
@@ -726,6 +730,43 @@ export const Dashboard = () => {
           </View>
         </View>
 
+        {dashboard.selectedDeviceInfo.id ? (
+          <View style={styles.deviceInfoCard}>
+            <View style={styles.deviceInfoHeader}>
+              <View style={styles.deviceInfoIcon}>
+                <Svgs.Charging
+                  color="#18B94B"
+                  width={styles.deviceInfoIconSvg.width}
+                  height={styles.deviceInfoIconSvg.height}
+                />
+              </View>
+              <View style={styles.deviceInfoCopy}>
+                <AppText
+                  semibold
+                  numberOfLines={1}
+                  label={dashboard.selectedDeviceInfo.name}
+                  style={styles.deviceInfoName}
+                />
+                <AppText
+                  medium
+                  numberOfLines={1}
+                  label={`Device ID: ${dashboard.selectedDeviceInfo.id}`}
+                  style={styles.deviceInfoDetail}
+                />
+              </View>
+            </View>
+
+            {dashboard.selectedDeviceInfo.location ? (
+              <AppText
+                medium
+                numberOfLines={1}
+                label={`Location: ${dashboard.selectedDeviceInfo.location}`}
+                style={styles.deviceInfoLocation}
+              />
+            ) : null}
+          </View>
+        ) : null}
+
         <View style={[styles.card, styles.metricsCard]}>
           <View style={styles.metricsGrid}>
             <Metric
@@ -744,7 +785,7 @@ export const Dashboard = () => {
             />
             <Metric
               unit="A"
-              label="Current"
+              label="Live Current"
               style={styles}
               icon={Svgs.DashboardCurrent}
               value={formatMetric(dashboard.current)}

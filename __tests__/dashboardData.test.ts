@@ -3,6 +3,7 @@ import {
   getCpStatusString,
   getEvseCapacityText,
   getVisiblePhaseNames,
+  isCpStatusChargingActive,
   parseDashboardMessage,
   parsePhaseParametersMessage,
 } from '../src/screens/authorised/dashboard/dashboardData';
@@ -11,7 +12,7 @@ describe('dashboard MQTT data mapping', () => {
   it('maps the current device payload including its voltage field typo', () => {
     const telemetry = parseDashboardMessage(
       JSON.stringify({
-        cp_stat: 5,
+        cp_stat: 3,
         votlageR: 230.4,
         votlageY: 231,
         votlageB: 229.8,
@@ -144,7 +145,7 @@ describe('dashboard MQTT data mapping', () => {
   it('accepts future camelCase aliases and device capacity fallback', () => {
     const telemetry = parseDashboardMessage(
       JSON.stringify({
-        cpStatus: 1,
+        cpStatus: 2,
         voltageR: '230',
         currentR: '12',
         duration_seconds: 7850,
@@ -152,7 +153,7 @@ describe('dashboard MQTT data mapping', () => {
       { evseCapacity: 4 },
     );
 
-    expect(telemetry.cpStatusText).toBe('PLUGGED IN');
+    expect(telemetry.cpStatusText).toBe('CONNECTED');
     expect(telemetry.duration).toBe('02:10:50');
     expect(telemetry.evseCapacityText).toBe('22 kW');
   });
@@ -168,18 +169,24 @@ describe('dashboard MQTT data mapping', () => {
 
   it('exposes all requested status, capacity, and fault mappings', () => {
     expect(
-      Array.from({ length: 8 }, (_, status) => getCpStatusString(status)),
+      Array.from({ length: 7 }, (_, status) => getCpStatusString(status)),
     ).toEqual([
       'NOT CONNECTED',
-      'PLUGGED IN',
-      'VENTILATION REQUIRED',
       'WAITING FOR AUTHENTICATION',
-      'CHARGING ERROR',
+      'CONNECTED',
       'CHARGING IN PROGRESS',
+      'VENTILATION REQUIRED',
       'CHARGING FINISHED',
-      'EMERGENCY STOP',
+      'CP ERROR',
     ]);
     expect(getEvseCapacityText(3)).toBe('11 kW');
     expect(getActiveFaults(2 ** 14)).toEqual(['rcdTestFailed']);
+  });
+
+  it('starts the mobile charging timer only for charging or ventilation statuses', () => {
+    expect(Array.from({ length: 7 }, (_, status) => status).filter(
+      isCpStatusChargingActive,
+    )).toEqual([3, 4]);
+    expect(isCpStatusChargingActive(undefined)).toBe(false);
   });
 });

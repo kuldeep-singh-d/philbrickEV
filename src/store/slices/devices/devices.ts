@@ -35,6 +35,7 @@ const slice = createSlice({
     failed: (state, action) => {
       state.loading = false;
       state.error = action.payload;
+      state.lastFetchedAt = Date.now();
     },
     reset: state => {
       state.data = undefined;
@@ -61,17 +62,50 @@ export const fetchDevices = () =>
 
 export const clearDevicesResponse = () => reset();
 
-export const selectDevices = (response: any): Device[] => {
-  const data = response?.data;
-  const candidates = [
-    response,
-    data,
-    data?.data,
-    data?.devices,
-    response?.devices,
-  ];
+const isDeviceList = (value: unknown): value is Device[] =>
+  Array.isArray(value) &&
+  value.every(
+    item =>
+      item === null ||
+      (typeof item === 'object' && !Array.isArray(item)),
+  );
 
-  return candidates.find(Array.isArray) || [];
+const DEVICE_LIST_KEYS = [
+  'devices',
+  'device',
+  'chargers',
+  'evses',
+  'items',
+  'records',
+  'results',
+  'rows',
+  'data',
+];
+
+const findDeviceList = (value: unknown, depth = 0): Device[] | undefined => {
+  if (isDeviceList(value)) {
+    return value;
+  }
+
+  if (!value || typeof value !== 'object' || Array.isArray(value) || depth > 5) {
+    return undefined;
+  }
+
+  const record = value as Record<string, unknown>;
+
+  for (const key of DEVICE_LIST_KEYS) {
+    const result = findDeviceList(record[key], depth + 1);
+
+    if (result) {
+      return result;
+    }
+  }
+
+  return undefined;
+};
+
+export const selectDevices = (response: any): Device[] => {
+  return findDeviceList(response) || [];
 };
 
 export const selectDeviceMqttTopic = (device?: Device | null) => {

@@ -176,23 +176,24 @@ export const getCpStatusString = (cp?: number) => {
     case 0:
       return 'NOT CONNECTED';
     case 1:
-      return 'PLUGGED IN';
-    case 2:
-      return 'VENTILATION REQUIRED';
-    case 3:
       return 'WAITING FOR AUTHENTICATION';
-    case 4:
-      return 'CHARGING ERROR';
-    case 5:
+    case 2:
+      return 'CONNECTED';
+    case 3:
       return 'CHARGING IN PROGRESS';
-    case 6:
+    case 4:
+      return 'VENTILATION REQUIRED';
+    case 5:
       return 'CHARGING FINISHED';
-    case 7:
-      return 'EMERGENCY STOP';
+    case 6:
+      return 'CP ERROR';
     default:
       return 'UNKNOWN';
   }
 };
+
+export const isCpStatusChargingActive = (cp?: number) =>
+  cp === 3 || cp === 4;
 
 export const getEvseCapacityText = (capacity?: number) => {
   switch (capacity) {

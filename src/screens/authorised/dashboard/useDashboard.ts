@@ -19,6 +19,7 @@ import { createDeviceMqttTopics, mqttPayloads } from '../../../mqtt/mqttTopics';
 import {
   FAULT_LABELS,
   getActiveFaults,
+  isCpStatusChargingActive,
   formatDuration,
   parseDashboardMessage,
   parsePhaseParametersMessage,
@@ -88,6 +89,25 @@ const getSessionDeviceId = (device: Record<string, unknown> | null) => {
   return typeof value === 'string' || typeof value === 'number'
     ? String(value).trim()
     : '';
+};
+
+const getDeviceText = (
+  device: Record<string, unknown> | null,
+  keys: string[],
+) => {
+  for (const key of keys) {
+    const value = device?.[key];
+
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return String(value);
+    }
+  }
+
+  return '';
 };
 
 export const useDashboard = () => {
@@ -165,8 +185,16 @@ export const useDashboard = () => {
     () => parsePhaseParametersMessage(responseIdMessage, telemetry.phases),
     [responseIdMessage, telemetry.phases],
   );
-  const isActiveChargingStatus =
-    telemetry.cpStatus === 2 || telemetry.cpStatus === 5;
+  const selectedDeviceInfo = useMemo(() => {
+    const device = selectedDevice as Record<string, unknown> | null;
+
+    return {
+      name: getDeviceText(device, ['name']) || 'Selected device',
+      id: getDeviceText(device, ['device_id', 'deviceId', 'id']),
+      location: getDeviceText(device, ['location']),
+    };
+  }, [selectedDevice]);
+  const isActiveChargingStatus = isCpStatusChargingActive(telemetry.cpStatus);
 
   const setCurrentValue = useCallback((current: number) => {
     const normalizedCurrent = normalizeCurrent(current);
@@ -287,10 +315,15 @@ export const useDashboard = () => {
   }, [mqtt.latestMessage, publish, topics]);
 
   useEffect(() => {
+    if (telemetry.cpStatus !== undefined) {
+      setIsCharging(isActiveChargingStatus);
+      return;
+    }
+
     if (telemetry.auth !== undefined) {
       setIsCharging(telemetry.auth === 1);
     }
-  }, [telemetry.auth]);
+  }, [isActiveChargingStatus, telemetry.auth, telemetry.cpStatus]);
 
   useEffect(() => {
     if (!mqtt.isConnected) {
@@ -720,6 +753,7 @@ export const useDashboard = () => {
     },
     dashboard: {
       telemetry,
+      selectedDeviceInfo,
       phaseParameters,
       isConnected: mqtt.isConnected,
       isLoading:

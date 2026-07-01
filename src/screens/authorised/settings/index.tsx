@@ -20,12 +20,12 @@ export const Settings = () => {
             style={styles.profileName}
           />
 
-          {/* {profile.username ? (
+          {profile.username ? (
             <AppText
               label={`@${profile.username}`}
               style={styles.profileUsername}
             />
-          ) : null} */}
+          ) : null}
 
           {profile.email ? (
             <View style={styles.detailRow}>
