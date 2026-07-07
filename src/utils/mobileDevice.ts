@@ -20,6 +20,14 @@ const createInstallationId = () => {
   return `${timestamp}-${random}`;
 };
 
+const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number) =>
+  Promise.race<T | null>([
+    promise,
+    new Promise<null>(resolve => {
+      setTimeout(() => resolve(null), timeoutMs);
+    }),
+  ]);
+
 export const getInstallationId = async () => {
   const storedId = await AsyncStorage.getItem(INSTALLATION_ID_KEY);
 
@@ -55,9 +63,14 @@ export const getMobileDeviceDescriptor =
         ? modelValue.trim()
         : undefined;
 
-    const fcmToken = await requestNotificationPermissionAndToken().catch(
-      () => null,
-    );
+    const fcmToken = await withTimeout(
+      requestNotificationPermissionAndToken(),
+      2500,
+    ).catch(() => null);
+
+    if (!fcmToken) {
+      requestNotificationPermissionAndToken().catch(() => null);
+    }
 
     return {
       hash: await getInstallationId(),

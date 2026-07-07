@@ -39,8 +39,8 @@ describe('device MQTT topics', () => {
 
   it('creates stable charger command payloads', () => {
     expect(mqttPayloads.requestId()).toBe('{"request":1}');
-    expect(mqttPayloads.remoteStart()).toBe('{"start":1}');
-    expect(mqttPayloads.remoteStop()).toBe('{"stop":1}');
+    expect(mqttPayloads.remoteStart()).toBe('{"START":1}');
+    expect(mqttPayloads.remoteStop()).toBe('{"STOP":1}');
     expect(mqttPayloads.errorAck()).toBe('{"error":"ok"}');
     expect(mqttPayloads.setCurrent(16)).toBe('{"setCurrent":16}');
   });

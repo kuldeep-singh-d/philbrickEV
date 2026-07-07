@@ -46,6 +46,23 @@ type StoreState = any;
 
 const inFlightRequestKeys = new Set<string>();
 
+const normalizeBaseURL = (value?: string) => {
+  const trimmedValue = value?.trim();
+
+  if (!trimmedValue) {
+    return '';
+  }
+
+  const urlWithProtocol = /^https?:\/\//i.test(trimmedValue)
+    ? trimmedValue
+    : `https://${trimmedValue}`;
+
+  return urlWithProtocol.replace(/\/+$/, '');
+};
+
+const isFormDataPayload = (value: unknown): value is FormData =>
+  typeof FormData !== 'undefined' && value instanceof FormData;
+
 const buildRequestKey = (config: AxiosRequestConfig) => {
   try {
     return JSON.stringify({
@@ -89,12 +106,19 @@ const api =
     const store = getState();
     const token =
       store?.login?.data?.data?.token || store?.register?.data?.data?.token;
-    const baseURL = store?.setEnvironment?.data?.domain || BASE_URL;
+    const baseURL = normalizeBaseURL(
+      store?.setEnvironment?.data?.domain || BASE_URL,
+    );
     // console.log('[API] baseURL:', baseURL);
     const headers: Record<string, string> = {
       Accept: 'application/json',
-      'Content-Type': isRowData ? 'application/json' : 'multipart/form-data',
     };
+
+    if (isRowData) {
+      headers['Content-Type'] = 'application/json';
+    } else if (!isFormDataPayload(data)) {
+      headers['Content-Type'] = 'multipart/form-data';
+    }
 
     // Conditionally attach Authorization header when token exists
     if (token) {
@@ -102,6 +126,18 @@ const api =
     }
 
     Object.assign(headers, extraHeaders);
+
+    if (!baseURL) {
+      const errorMessage = 'API base URL is not configured.';
+
+      show.error(errorMessage);
+      dispatch(actions.apiCallFailed({ message: errorMessage } as any));
+      if (onFailed) {
+        dispatch({ type: onFailed, payload: { message: errorMessage } });
+      }
+      dispatch(handalLoading(false));
+      return;
+    }
 
     const requestConfig: AxiosRequestConfig = {
       url,

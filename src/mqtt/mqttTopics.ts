@@ -56,8 +56,8 @@ export const createDeviceMqttTopics = (
 
 export const mqttPayloads = {
   requestId: () => JSON.stringify({ request: 1 }),
-  remoteStart: () => JSON.stringify({ start: 1 }),
-  remoteStop: () => JSON.stringify({ stop: 1 }),
+  remoteStart: () => JSON.stringify({ START: 1 }),
+  remoteStop: () => JSON.stringify({ STOP: 1 }),
   errorAck: () => JSON.stringify({ error: 'ok' }),
   setCurrent: (current: number) => JSON.stringify({ setCurrent: current }),
 };
