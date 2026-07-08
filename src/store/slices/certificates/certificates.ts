@@ -129,6 +129,56 @@ export const selectCertificateFiles = (
 const getBundledCertificateName = (files: CertificateFileMetadata[]) =>
   files.find(file => file.name.toLowerCase().endsWith('.p12'))?.name || '';
 
+const maskSensitiveCertificateFields = (value: unknown): unknown => {
+  if (Array.isArray(value)) {
+    return value.map(maskSensitiveCertificateFields);
+  }
+
+  if (!value || typeof value !== 'object') {
+    return value;
+  }
+
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).map(([key, item]) => {
+      const isSensitive = /password|secret|token|key/i.test(key);
+
+      return [
+        key,
+        isSensitive && typeof item === 'string' && item
+          ? '[masked]'
+          : maskSensitiveCertificateFields(item),
+      ];
+    }),
+  );
+};
+
+const logCertificatesDebugInfo = ({
+  response,
+  items,
+  defaultCertificate,
+  certificateFiles,
+  mqttConfig,
+  mqttConfigError,
+}: {
+  response: unknown;
+  items: CertificateItem[];
+  defaultCertificate?: CertificateItem;
+  certificateFiles: CertificateFileMetadata[];
+  mqttConfig?: MqttConfig;
+  mqttConfigError: string;
+}) => {
+  console.log('[Certificates][MQTT] API response', {
+    response: maskSensitiveCertificateFields(response),
+  });
+  console.log('[Certificates][MQTT] parsed data', {
+    certificateCount: items.length,
+    defaultCertificate: maskSensitiveCertificateFields(defaultCertificate),
+    certificateFiles: maskSensitiveCertificateFields(certificateFiles),
+    mqttConfig: maskSensitiveCertificateFields(mqttConfig),
+    mqttConfigError,
+  });
+};
+
 const LEGACY_BUNDLED_CERTIFICATE = {
   certificateName: 'client_identity.p12',
   certificatePassword: '123456',
@@ -180,11 +230,7 @@ export const buildMqttConfigFromCertificate = (
       keepAliveSeconds: 60,
       certificate: {
         certificateName,
-        certificatePassword: getString(certificate, [
-          'certificate_password',
-          'certificatePassword',
-          'password',
-        ]),
+        certificatePassword: '123456',
       },
     },
     error: '',
@@ -211,6 +257,7 @@ const slice = createSlice({
   initialState,
   reducers: {
     requested: state => {
+      console.log('[Certificates][MQTT] request started');
       state.loading = true;
       state.error = undefined;
     },
@@ -225,11 +272,22 @@ const slice = createSlice({
       );
       state.mqttConfig = mqttResult.config;
       state.mqttConfigError = mqttResult.error;
+      logCertificatesDebugInfo({
+        response: action.payload,
+        items: state.items,
+        defaultCertificate: state.defaultCertificate,
+        certificateFiles: state.certificateFiles,
+        mqttConfig: state.mqttConfig,
+        mqttConfigError: state.mqttConfigError,
+      });
       state.lastFetchedAt = Date.now();
       state.loading = false;
       state.error = undefined;
     },
     failed: (state, action) => {
+      console.warn('[Certificates][MQTT] request failed', {
+        error: maskSensitiveCertificateFields(action.payload),
+      });
       state.loading = false;
       state.error = action.payload;
     },

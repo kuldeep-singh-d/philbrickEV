@@ -64,6 +64,7 @@ describe('certificates API state', () => {
         port: 8883,
         certificate: {
           certificateName: 'tenant-client.p12',
+          certificatePassword: '123456',
         },
       },
     });

@@ -1,6 +1,7 @@
 import {
   DeviceEventEmitter,
   type EmitterSubscription,
+  NativeEventEmitter,
   NativeModules,
   Platform,
 } from 'react-native';
@@ -45,10 +46,12 @@ export class MqttOperationError extends Error {
 }
 
 type NativeMqttClient = {
+  addListener?(eventName: string): void;
   connect(
     options: MqttConfig,
   ): Promise<{ connected: boolean; clientId?: string }>;
   disconnect(): Promise<{ connected: boolean }>;
+  removeListeners?(count: number): void;
   publish(options: {
     topic: string;
     message: string;
@@ -59,6 +62,11 @@ type NativeMqttClient = {
   unsubscribe?(options: {
     topic: string;
   }): Promise<{ unsubscribed: boolean; topic: string }>;
+};
+
+type NativeMqttEventModule = NativeMqttClient & {
+  addListener(eventName: string): void;
+  removeListeners(count: number): void;
 };
 
 const MQTT_MESSAGE_EVENT = 'MqttMessageReceived';
@@ -92,6 +100,26 @@ function clearActiveConnectionState() {
 function getNativeMqttClient(): NativeMqttClient | undefined {
   const mqttClient = NativeModules.MqttClient as NativeMqttClient | undefined;
   return mqttClient;
+}
+
+function isNativeMqttEventModule(
+  mqttClient: NativeMqttClient | undefined,
+): mqttClient is NativeMqttEventModule {
+  return (
+    Boolean(mqttClient) &&
+    typeof mqttClient?.addListener === 'function' &&
+    typeof mqttClient?.removeListeners === 'function'
+  );
+}
+
+function getMqttEventEmitter() {
+  const mqttClient = getNativeMqttClient();
+
+  if (Platform.OS === 'ios' && isNativeMqttEventModule(mqttClient)) {
+    return new NativeEventEmitter(mqttClient);
+  }
+
+  return DeviceEventEmitter;
 }
 
 function padTimePart(value: number, length: number) {
@@ -536,7 +564,7 @@ export async function unsubscribeMqttTopics(
 export function addMqttMessageListener(
   listener: (message: MqttMessage) => void,
 ): EmitterSubscription {
-  return DeviceEventEmitter.addListener(MQTT_MESSAGE_EVENT, event => {
+  return getMqttEventEmitter().addListener(MQTT_MESSAGE_EVENT, event => {
     const message = normalizeMqttMessage(event);
 
     if (!message) {

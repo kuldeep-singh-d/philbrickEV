@@ -237,7 +237,8 @@ interface ChargingHeroProps {
 // Keep the action artwork available for a future UI pass without showing it now.
 const SHOW_HERO_ACTION_ICON = false;
 const HERO_COLLAPSE_DISTANCE = 80;
-const HERO_COMPACT_SCALE = 0.78;
+const HERO_SIZE = 58;
+const HERO_COMPACT_SCALE = 0.85;
 
 const ChargingHero = ({
   canControl,
@@ -371,7 +372,10 @@ const ChargingHero = ({
   });
   const heroHeight = scrollY.interpolate({
     inputRange: [0, HERO_COLLAPSE_DISTANCE],
-    outputRange: [moderateWidth(62), moderateWidth(48)],
+    outputRange: [
+      moderateWidth(HERO_SIZE),
+      moderateWidth(HERO_SIZE) * HERO_COMPACT_SCALE,
+    ],
     extrapolate: 'clamp',
   });
   const heroScale = scrollY.interpolate({
@@ -653,19 +657,6 @@ export const Dashboard = () => {
         <View style={[styles.iconButton, styles.hiddenIconButton]} />
       </View>
 
-      <ChargingHero
-        styles={styles}
-        scrollY={scrollY}
-        isCharging={isCharging}
-        hasFault={dashboard.hasFault}
-        cpStatus={telemetry.cpStatus}
-        canControl={dashboard.canControl}
-        isConnected={dashboard.isConnected}
-        statusText={telemetry.cpStatusText}
-        onChargeChange={handleChargeChange}
-        isPublishing={dashboard.isPublishing}
-      />
-
       <Animated.ScrollView
         style={styles.scrollView}
         bounces={false}
@@ -678,7 +669,18 @@ export const Dashboard = () => {
           { useNativeDriver: false },
         )}
       >
-        {/* <View style={styles.heroSpace} /> */}
+        <ChargingHero
+          styles={styles}
+          scrollY={scrollY}
+          isCharging={isCharging}
+          hasFault={dashboard.hasFault}
+          cpStatus={telemetry.cpStatus}
+          canControl={dashboard.canControl}
+          isConnected={dashboard.isConnected}
+          statusText={telemetry.cpStatusText}
+          onChargeChange={handleChargeChange}
+          isPublishing={dashboard.isPublishing}
+        />
 
         {/* <View
           style={[
@@ -733,13 +735,13 @@ export const Dashboard = () => {
         {dashboard.selectedDeviceInfo.id ? (
           <View style={styles.deviceInfoCard}>
             <View style={styles.deviceInfoHeader}>
-              <View style={styles.deviceInfoIcon}>
+              {/* <View style={styles.deviceInfoIcon}>
                 <Svgs.Charging
                   color="#18B94B"
                   width={styles.deviceInfoIconSvg.width}
                   height={styles.deviceInfoIconSvg.height}
                 />
-              </View>
+              </View> */}
               <View style={styles.deviceInfoCopy}>
                 <AppText
                   semibold
@@ -747,23 +749,31 @@ export const Dashboard = () => {
                   label={dashboard.selectedDeviceInfo.name}
                   style={styles.deviceInfoName}
                 />
-                <AppText
-                  medium
-                  numberOfLines={1}
-                  label={`Device ID: ${dashboard.selectedDeviceInfo.id}`}
-                  style={styles.deviceInfoDetail}
-                />
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                  }}
+                >
+                  <AppText
+                    medium
+                    numberOfLines={1}
+                    label={`Device ID: ${dashboard.selectedDeviceInfo.id}`}
+                    style={styles.deviceInfoDetail}
+                  />
+
+                  {dashboard.selectedDeviceInfo.location ? (
+                    <AppText
+                      medium
+                      numberOfLines={1}
+                      label={`Location: ${dashboard.selectedDeviceInfo.location}`}
+                      style={styles.deviceInfoLocation}
+                    />
+                  ) : null}
+                </View>
               </View>
             </View>
-
-            {dashboard.selectedDeviceInfo.location ? (
-              <AppText
-                medium
-                numberOfLines={1}
-                label={`Location: ${dashboard.selectedDeviceInfo.location}`}
-                style={styles.deviceInfoLocation}
-              />
-            ) : null}
           </View>
         ) : null}
 

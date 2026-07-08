@@ -10,6 +10,7 @@ class MqttClient: RCTEventEmitter {
   private var outputStream: OutputStream?
   private var keepAliveTimer: DispatchSourceTimer?
   private var isReading = false
+  private var hasMessageListeners = false
   private var nextPacketIdentifier = 1
 
   override static func requiresMainQueueSetup() -> Bool {
@@ -18,6 +19,14 @@ class MqttClient: RCTEventEmitter {
 
   override func supportedEvents() -> [String]! {
     ["MqttMessageReceived"]
+  }
+
+  override func startObserving() {
+    hasMessageListeners = true
+  }
+
+  override func stopObserving() {
+    hasMessageListeners = false
   }
 
   @objc(connect:resolver:rejecter:)
@@ -51,6 +60,7 @@ class MqttClient: RCTEventEmitter {
           throw MqttError.missingOption("certificateName")
         }
         let certificatePassword = certificate["certificatePassword"] as? String ?? ""
+        self.log("Connecting host=\(host) port=\(port) clientId=\(clientId)")
 
         let tlsIdentity = try self.loadIdentity(
           certificateName: certificateName,
@@ -72,18 +82,18 @@ class MqttClient: RCTEventEmitter {
           caCertificates: tlsIdentity.caCertificates
         )
 
-        let packetType = try self.readByte(from: streams.input)
+        let packetType = try self.readByte(from: streams.input, timeout: 15)
         guard packetType == 0x20 else {
           throw MqttError.protocolError("Unexpected MQTT CONNACK header: \(packetType)")
         }
 
-        let remainingLength = try self.readRemainingLength(from: streams.input)
+        let remainingLength = try self.readRemainingLength(from: streams.input, timeout: 15)
         guard remainingLength >= 2 else {
           throw MqttError.protocolError("Invalid MQTT CONNACK length: \(remainingLength)")
         }
 
-        _ = try self.readByte(from: streams.input)
-        let returnCode = try self.readByte(from: streams.input)
+        _ = try self.readByte(from: streams.input, timeout: 15)
+        let returnCode = try self.readByte(from: streams.input, timeout: 15)
         guard returnCode == 0 else {
           throw MqttError.protocolError("MQTT connection refused with code \(returnCode)")
         }
@@ -223,10 +233,7 @@ class MqttClient: RCTEventEmitter {
     }
 
     let certificateChain = items.first?[kSecImportItemCertChain as String] as? [SecCertificate] ?? []
-    let caCertificates = certificateChain
-    guard !caCertificates.isEmpty else {
-      throw MqttError.certificate("No CA certificate was found in \(certificateName)")
-    }
+    let caCertificates = Array(certificateChain.dropFirst())
     return MqttTlsIdentity(
       identity: importedIdentity as! SecIdentity,
       caCertificates: caCertificates
@@ -247,17 +254,28 @@ class MqttClient: RCTEventEmitter {
       throw MqttError.connection("Unable to create MQTT socket streams")
     }
 
+    let clientCertificates: [Any] = [tlsIdentity.identity] + tlsIdentity.caCertificates
     let sslSettings: [String: Any] = [
       kCFStreamSSLValidatesCertificateChain as String: false,
-      kCFStreamSSLCertificates as String: [tlsIdentity.identity],
+      kCFStreamSSLCertificates as String: clientCertificates,
       kCFStreamSSLPeerName as String: host,
     ]
+    let securityLevelKey = Stream.PropertyKey(rawValue: kCFStreamPropertySocketSecurityLevel as String)
     let sslSettingsKey = Stream.PropertyKey(rawValue: kCFStreamPropertySSLSettings as String)
+    input.setProperty(kCFStreamSocketSecurityLevelNegotiatedSSL, forKey: securityLevelKey)
+    output.setProperty(kCFStreamSocketSecurityLevelNegotiatedSSL, forKey: securityLevelKey)
     input.setProperty(sslSettings, forKey: sslSettingsKey)
     output.setProperty(sslSettings, forKey: sslSettingsKey)
 
+    input.schedule(in: .current, forMode: .default)
+    output.schedule(in: .current, forMode: .default)
     input.open()
     output.open()
+
+    defer {
+      input.remove(from: .current, forMode: .default)
+      output.remove(from: .current, forMode: .default)
+    }
 
     let deadline = Date().addingTimeInterval(15)
     while Date() < deadline {
@@ -267,7 +285,7 @@ class MqttClient: RCTEventEmitter {
       if input.streamStatus == .open && output.streamStatus == .open {
         return (input, output)
       }
-      Thread.sleep(forTimeInterval: 0.05)
+      RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.05))
     }
 
     throw MqttError.connection("Timed out opening MQTT TLS streams")
@@ -280,25 +298,31 @@ class MqttClient: RCTEventEmitter {
   ) throws {
     let peerCertificatesKey = Stream.PropertyKey(rawValue: "kCFStreamPropertySSLPeerCertificates")
     guard let peerCertificates = input.property(forKey: peerCertificatesKey) as? [SecCertificate],
-          let leafCertificate = peerCertificates.first else {
+          !peerCertificates.isEmpty else {
       throw MqttError.certificate("MQTT server did not provide a certificate chain")
     }
 
     var trust: SecTrust?
+    let policy = SecPolicyCreateBasicX509()
     let createTrustStatus = SecTrustCreateWithCertificates(
       peerCertificates as CFArray,
-      SecPolicyCreateSSL(true, host as CFString),
+      policy,
       &trust
     )
     guard createTrustStatus == errSecSuccess, let trust else {
       throw MqttError.certificate("Unable to create MQTT server trust: \(createTrustStatus)")
     }
 
-    let anchorsStatus = SecTrustSetAnchorCertificates(trust, caCertificates as CFArray)
-    guard anchorsStatus == errSecSuccess else {
-      throw MqttError.certificate("Unable to set MQTT CA anchors: \(anchorsStatus)")
+    if !caCertificates.isEmpty {
+      let anchorsStatus = SecTrustSetAnchorCertificates(trust, caCertificates as CFArray)
+      guard anchorsStatus == errSecSuccess else {
+        throw MqttError.certificate("Unable to set MQTT CA anchors: \(anchorsStatus)")
+      }
+      SecTrustSetAnchorCertificatesOnly(trust, true)
+      log("MQTT server certificate validated with bundled CA")
+    } else {
+      log("MQTT server certificate validating with system trust host=\(host)")
     }
-    SecTrustSetAnchorCertificatesOnly(trust, true)
 
     var trustError: CFError?
     guard SecTrustEvaluateWithError(trust, &trustError) else {
@@ -471,6 +495,10 @@ class MqttClient: RCTEventEmitter {
     let topic = String(decoding: packet[topicStart..<topicEnd], as: UTF8.self)
     let message = String(decoding: packet[payloadStart...], as: UTF8.self)
     log("MQTT message received topic=\(topic) message=\(message)")
+    guard hasMessageListeners else {
+      log("MQTT message dropped because no JS listeners are registered")
+      return
+    }
     sendEvent(
       withName: "MqttMessageReceived",
       body: ["topic": topic, "message": message]
@@ -491,12 +519,12 @@ class MqttClient: RCTEventEmitter {
     return encoded
   }
 
-  private func readRemainingLength(from input: InputStream) throws -> Int {
+  private func readRemainingLength(from input: InputStream, timeout: TimeInterval? = nil) throws -> Int {
     var multiplier = 1
     var value = 0
     var encodedByte: UInt8
     repeat {
-      encodedByte = try readByte(from: input)
+      encodedByte = try readByte(from: input, timeout: timeout)
       value += Int(encodedByte & 127) * multiplier
       multiplier *= 128
       if multiplier > 128 * 128 * 128 {
@@ -525,21 +553,36 @@ class MqttClient: RCTEventEmitter {
     }
   }
 
-  private func readByte(from input: InputStream) throws -> UInt8 {
+  private func readByte(from input: InputStream, timeout: TimeInterval? = nil) throws -> UInt8 {
     var byte: UInt8 = 0
-    let count = input.read(&byte, maxLength: 1)
-    if count == 1 {
-      return byte
+    let deadline = timeout.map { Date().addingTimeInterval($0) }
+
+    while true {
+      let count = input.read(&byte, maxLength: 1)
+      if count == 1 {
+        return byte
+      }
+      if let error = input.streamError {
+        throw error
+      }
+      if input.streamStatus == .atEnd || input.streamStatus == .closed {
+        throw MqttError.connection("MQTT socket closed while reading")
+      }
+      if let deadline, Date() >= deadline {
+        throw MqttError.connection("Timed out reading MQTT packet")
+      }
+      Thread.sleep(forTimeInterval: 0.02)
     }
-    if let error = input.streamError {
-      throw error
-    }
-    throw MqttError.connection("MQTT socket closed while reading")
   }
 
-  private func readExact(from input: InputStream, length: Int) throws -> [UInt8] {
+  private func readExact(
+    from input: InputStream,
+    length: Int,
+    timeout: TimeInterval? = nil
+  ) throws -> [UInt8] {
     var bytes = [UInt8](repeating: 0, count: length)
     var offset = 0
+    let deadline = timeout.map { Date().addingTimeInterval($0) }
 
     while offset < length {
       let read = bytes.withUnsafeMutableBytes { buffer -> Int in
@@ -551,13 +594,20 @@ class MqttClient: RCTEventEmitter {
           maxLength: length - offset
         )
       }
-      if read <= 0 {
-        if let error = input.streamError {
-          throw error
-        }
+      if read > 0 {
+        offset += read
+        continue
+      }
+      if let error = input.streamError {
+        throw error
+      }
+      if input.streamStatus == .atEnd || input.streamStatus == .closed {
         throw MqttError.connection("MQTT socket closed while reading packet")
       }
-      offset += read
+      if let deadline, Date() >= deadline {
+        throw MqttError.connection("Timed out reading MQTT packet")
+      }
+      Thread.sleep(forTimeInterval: 0.02)
     }
     return bytes
   }

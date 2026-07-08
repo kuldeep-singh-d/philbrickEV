@@ -9,16 +9,13 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 //local imports
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useDispatch, useSelector } from '@hooks';
 import { colors } from '@assets/colors';
 import { Authorised } from './authorised';
 import { ToastMessage } from '@components';
 import { Unauthorised } from './unauthorised';
-import {
-  fetchCertificates,
-  isCertificatesCacheStale,
-} from '@store/slices/certificates/certificates';
+import { fetchCertificates } from '@store/slices/certificates/certificates';
 import {
   flushNotificationNavigation,
   navigationRef,
@@ -38,6 +35,7 @@ const darkTheme: Theme = {
 
 const Navigation = () => {
   const dispatch = useDispatch();
+  const fetchedCertificatesForTokenRef = useRef('');
   const { status } = useSelector((state: any) => state?.loginState);
   const currentTheme = useSelector((state: any) => state?.appTheme?.data);
   const loginToken = useSelector(
@@ -56,31 +54,19 @@ const Navigation = () => {
   }, [status]);
 
   useEffect(() => {
-    const certificatesReady = Boolean(
-      certificates?.data &&
-        (certificates?.mqttConfig || certificates?.mqttConfigError),
-    );
-
-    const certificatesStale = isCertificatesCacheStale(
-      certificates?.lastFetchedAt,
-    );
-
-    if (!status || !loginToken || certificates?.loading || certificates?.error) {
+    if (!status || !loginToken || certificates?.loading) {
       return;
     }
 
-    if (certificatesReady && !certificatesStale) {
+    if (fetchedCertificatesForTokenRef.current === loginToken) {
       return;
     }
 
+    fetchedCertificatesForTokenRef.current = loginToken;
+    console.log('[Certificates][MQTT] dispatching fetchCertificates after login');
     dispatch(fetchCertificates());
   }, [
-    certificates?.data,
-    certificates?.lastFetchedAt,
     certificates?.loading,
-    certificates?.error,
-    certificates?.mqttConfig,
-    certificates?.mqttConfigError,
     dispatch,
     loginToken,
     status,
