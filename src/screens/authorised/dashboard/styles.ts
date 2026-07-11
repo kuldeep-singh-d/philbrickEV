@@ -441,6 +441,12 @@ export const useStyles = () => {
       fontSize: moderateHeight(1.8),
       lineHeight: moderateHeight(2),
     },
+    metricLabelSetCurrent: {
+      flexShrink: 1,
+      color: '#667085',
+      fontSize: moderateHeight(1.6),
+      lineHeight: moderateHeight(2),
+    },
     metricValue: {
       color: '#101828',
       fontSize: moderateHeight(2.3),

@@ -15,7 +15,11 @@ import {
   getMqttErrorDetails,
   getMqttUserMessage,
 } from '../../../mqtt/mqttClient';
-import { createDeviceMqttTopics, mqttPayloads } from '../../../mqtt/mqttTopics';
+import {
+  createDeviceMqttTopics,
+  mqttPayloads,
+  type DeviceMqttTopics,
+} from '../../../mqtt/mqttTopics';
 import {
   FAULT_LABELS,
   getActiveFaults,
@@ -35,6 +39,49 @@ export type DashboardAlertItem = {
 const MIN_CURRENT = 1;
 const MAX_CURRENT = 32;
 const DEFAULT_CURRENT = 16;
+const CHARGER_DATA_TIMEOUT_MS = 8_000;
+const LIVE_STATUS_PAYLOAD_KEYS = [
+  'cp_stat',
+  'cpStatus',
+  'cp_status',
+  'auth',
+  'power',
+  'temperature',
+  'setcurrentfb',
+  'setCurrent',
+  'fault_status',
+  'votlageR',
+  'votlageY',
+  'votlageB',
+  'voltageR',
+  'voltageY',
+  'voltageB',
+  'currentR',
+  'currentY',
+  'currentB',
+] as const;
+const RESPONSE_ID_PAYLOAD_KEYS = [
+  'device1',
+  'deviceId',
+  'device_id',
+  'evsecap',
+  'swversion1',
+  'swversion2',
+  'mcuVersion',
+  'wifiVersion',
+  'mcu',
+  'wifi',
+  'votlageR',
+  'votlageY',
+  'votlageB',
+  'voltageR',
+  'voltageY',
+  'voltageB',
+  'currentR',
+  'currentY',
+  'currentB',
+] as const;
+const ERROR_PAYLOAD_KEYS = ['error', 'fault', 'fault_status'] as const;
 
 const normalizeCurrent = (current: number) =>
   Math.max(MIN_CURRENT, Math.min(Math.round(current), MAX_CURRENT));
@@ -111,6 +158,52 @@ const getDeviceText = (
   return '';
 };
 
+const parseJsonRecord = (message: string) => {
+  try {
+    const parsed = JSON.parse(message);
+
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : null;
+  } catch {
+    return null;
+  }
+};
+
+const hasPayloadKey = (
+  payload: Record<string, unknown>,
+  keys: readonly string[],
+) => keys.some(key => Object.prototype.hasOwnProperty.call(payload, key));
+
+const isValidLiveChargerMessage = (
+  topics: DeviceMqttTopics,
+  topic: string,
+  message: string,
+) => {
+  const payload = parseJsonRecord(message);
+
+  if (!payload) {
+    return false;
+  }
+
+  if (
+    topic === topics.subscribe.status ||
+    topic === topics.subscribe.legacyStatus
+  ) {
+    return hasPayloadKey(payload, LIVE_STATUS_PAYLOAD_KEYS);
+  }
+
+  if (topic === topics.subscribe.responseId) {
+    return hasPayloadKey(payload, RESPONSE_ID_PAYLOAD_KEYS);
+  }
+
+  if (topic === topics.subscribe.error) {
+    return hasPayloadKey(payload, ERROR_PAYLOAD_KEYS);
+  }
+
+  return false;
+};
+
 export const useDashboard = () => {
   const styles = useStyles();
   const dispatch = useDispatch();
@@ -164,6 +257,8 @@ export const useDashboard = () => {
   const [sessionElapsedSeconds, setSessionElapsedSeconds] = useState(0);
   const [currentSetting, setCurrentSetting] = useState(DEFAULT_CURRENT);
   const [isSettingCurrent, setIsSettingCurrent] = useState(false);
+  const [connectionAlertVisible, setConnectionAlertVisible] = useState(false);
+  const [connectionAlertRetrying, setConnectionAlertRetrying] = useState(false);
 
   const isChargingRef = useRef(isCharging);
   const currentSettingRef = useRef(DEFAULT_CURRENT);
@@ -174,6 +269,11 @@ export const useDashboard = () => {
   const sessionStartRef = useRef<string | null>(null);
   const activeTimerStartedAtMsRef = useRef<number | null>(null);
   const sessionTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const connectionAlertTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const lastValidChargerMessageAtRef = useRef<number | null>(null);
+  const connectionAlertRetrySawInitializingRef = useRef(false);
 
   const telemetry = useMemo(
     () =>
@@ -200,6 +300,52 @@ export const useDashboard = () => {
   }, [responseIdMessage, selectedDevice]);
   const isActiveChargingStatus = isCpStatusChargingActive(telemetry.cpStatus);
 
+  const clearConnectionAlertTimer = useCallback(() => {
+    if (connectionAlertTimerRef.current) {
+      clearTimeout(connectionAlertTimerRef.current);
+      connectionAlertTimerRef.current = null;
+    }
+  }, []);
+
+  const startConnectionAlertTimer = useCallback(() => {
+    clearConnectionAlertTimer();
+
+    if (
+      !topics ||
+      !mqtt.isConnected ||
+      mqtt.isInitializing ||
+      !selectedDeviceId
+    ) {
+      return;
+    }
+
+    connectionAlertTimerRef.current = setTimeout(() => {
+      const lastValidMessageAt = lastValidChargerMessageAtRef.current;
+      const shouldShowAlert =
+        lastValidMessageAt === null ||
+        Date.now() - lastValidMessageAt >= CHARGER_DATA_TIMEOUT_MS;
+
+      if (shouldShowAlert) {
+        setConnectionAlertRetrying(false);
+        setConnectionAlertVisible(true);
+      }
+    }, CHARGER_DATA_TIMEOUT_MS);
+  }, [
+    clearConnectionAlertTimer,
+    mqtt.isConnected,
+    mqtt.isInitializing,
+    selectedDeviceId,
+    topics,
+  ]);
+
+  const markConnectionAlertActivity = useCallback(() => {
+    lastValidChargerMessageAtRef.current = Date.now();
+    setConnectionAlertVisible(false);
+    setConnectionAlertRetrying(false);
+    connectionAlertRetrySawInitializingRef.current = false;
+    startConnectionAlertTimer();
+  }, [startConnectionAlertTimer]);
+
   const setCurrentValue = useCallback((current: number) => {
     const normalizedCurrent = normalizeCurrent(current);
     currentSettingRef.current = normalizedCurrent;
@@ -221,12 +367,17 @@ export const useDashboard = () => {
     requestedDeviceRef.current = '';
     sessionStartRef.current = null;
     activeTimerStartedAtMsRef.current = null;
+    lastValidChargerMessageAtRef.current = null;
+    connectionAlertRetrySawInitializingRef.current = false;
+    setConnectionAlertVisible(false);
+    setConnectionAlertRetrying(false);
+    clearConnectionAlertTimer();
 
     if (sessionTimerRef.current) {
       clearInterval(sessionTimerRef.current);
       sessionTimerRef.current = null;
     }
-  }, [selectedDeviceId, setCurrentValue]);
+  }, [clearConnectionAlertTimer, selectedDeviceId, setCurrentValue]);
 
   useEffect(() => {
     if (!mqttConfigError) {
@@ -257,9 +408,72 @@ export const useDashboard = () => {
       if (sessionTimerRef.current) {
         clearInterval(sessionTimerRef.current);
       }
+
+      clearConnectionAlertTimer();
     },
-    [],
+    [clearConnectionAlertTimer],
   );
+
+  useEffect(() => {
+    if (
+      !topics ||
+      !selectedDeviceId ||
+      !mqtt.isConnected ||
+      mqtt.isInitializing
+    ) {
+      clearConnectionAlertTimer();
+      lastValidChargerMessageAtRef.current = null;
+
+      if (!mqtt.isInitializing) {
+        setConnectionAlertVisible(false);
+        setConnectionAlertRetrying(false);
+        connectionAlertRetrySawInitializingRef.current = false;
+      }
+
+      return;
+    }
+
+    startConnectionAlertTimer();
+
+    return clearConnectionAlertTimer;
+  }, [
+    clearConnectionAlertTimer,
+    mqtt.isConnected,
+    mqtt.isInitializing,
+    selectedDeviceId,
+    startConnectionAlertTimer,
+    topics,
+  ]);
+
+  useEffect(() => {
+    if (!connectionAlertRetrying) {
+      return;
+    }
+
+    if (mqtt.isInitializing || mqtt.status === 'connecting') {
+      connectionAlertRetrySawInitializingRef.current = true;
+      return;
+    }
+
+    if (!connectionAlertRetrySawInitializingRef.current) {
+      return;
+    }
+
+    connectionAlertRetrySawInitializingRef.current = false;
+    setConnectionAlertRetrying(false);
+
+    if (mqtt.isConnected) {
+      setConnectionAlertVisible(false);
+      lastValidChargerMessageAtRef.current = null;
+      startConnectionAlertTimer();
+    }
+  }, [
+    connectionAlertRetrying,
+    mqtt.isConnected,
+    mqtt.isInitializing,
+    mqtt.status,
+    startConnectionAlertTimer,
+  ]);
 
   useEffect(() => {
     const latestMessage = mqtt.latestMessage;
@@ -268,9 +482,34 @@ export const useDashboard = () => {
       return;
     }
 
+    const relevantTopics = [
+      topics.subscribe.legacyStatus,
+      topics.subscribe.responseId,
+      topics.subscribe.status,
+      topics.subscribe.error,
+    ];
+    const isRelevantLiveDataTopic = relevantTopics.includes(
+      latestMessage.topic,
+    );
+
+    if (
+      isRelevantLiveDataTopic &&
+      !isValidLiveChargerMessage(
+        topics,
+        latestMessage.topic,
+        latestMessage.message,
+      )
+    ) {
+      console.warn('[Dashboard MQTT] invalid live charger payload ignored', {
+        topic: latestMessage.topic,
+      });
+      return;
+    }
+
     try {
       if (latestMessage.topic === topics.subscribe.responseId) {
         setResponseIdMessage(latestMessage.message);
+        markConnectionAlertActivity();
         return;
       }
 
@@ -279,11 +518,13 @@ export const useDashboard = () => {
         latestMessage.topic === topics.subscribe.legacyStatus
       ) {
         setStatusMessage(latestMessage.message);
+        markConnectionAlertActivity();
         return;
       }
 
       if (latestMessage.topic === topics.subscribe.error) {
         setChargerError(getChargerErrorText(latestMessage.message));
+        markConnectionAlertActivity();
         publish(topics.publish.errorAck, mqttPayloads.errorAck()).catch(
           error => {
             console.warn(
@@ -316,7 +557,7 @@ export const useDashboard = () => {
         error: getMqttErrorDetails(error),
       });
     }
-  }, [mqtt.latestMessage, publish, topics]);
+  }, [markConnectionAlertActivity, mqtt.latestMessage, publish, topics]);
 
   useEffect(() => {
     if (telemetry.cpStatus !== undefined) {
@@ -335,6 +576,14 @@ export const useDashboard = () => {
       return;
     }
 
+    if (!topics) {
+      return;
+    }
+
+    if (mqtt.subscribedTopics.includes(topics.subscribe.responseId)) {
+      return;
+    }
+
     if (!topics || requestedDeviceRef.current === topics.deviceId) {
       return;
     }
@@ -349,7 +598,12 @@ export const useDashboard = () => {
       setCommandFeedbackIsError(true);
       setCommandFeedback(getMqttUserMessage(error));
     });
-  }, [mqtt.isConnected, publish, topics]);
+  }, [
+    mqtt.isConnected,
+    mqtt.subscribedTopics,
+    publish,
+    topics,
+  ]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', nextState => {
@@ -357,6 +611,12 @@ export const useDashboard = () => {
       appStateRef.current = nextState;
 
       if (nextState === 'background') {
+        clearConnectionAlertTimer();
+        lastValidChargerMessageAtRef.current = null;
+        connectionAlertRetrySawInitializingRef.current = false;
+        setConnectionAlertVisible(false);
+        setConnectionAlertRetrying(false);
+
         disconnect().catch(error => {
           console.warn(
             '[Dashboard MQTT] background disconnect failed',
@@ -372,7 +632,7 @@ export const useDashboard = () => {
     });
 
     return () => subscription.remove();
-  }, [disconnect, retry]);
+  }, [clearConnectionAlertTimer, disconnect, retry]);
 
   const syncChargingSession = useCallback(
     (startedAt: string, endedAt: string) => {
@@ -539,6 +799,19 @@ export const useDashboard = () => {
 
     retry();
   }, [certificatesLoading, dispatch, dynamicMqttConfig, retry]);
+
+  const handleConnectionAlertRetry = useCallback(() => {
+    if (connectionAlertRetrying) {
+      return;
+    }
+
+    clearConnectionAlertTimer();
+    lastValidChargerMessageAtRef.current = null;
+    connectionAlertRetrySawInitializingRef.current = false;
+    setConnectionAlertVisible(true);
+    setConnectionAlertRetrying(true);
+    handleRetry();
+  }, [clearConnectionAlertTimer, connectionAlertRetrying, handleRetry]);
 
   const adjustCurrent = useCallback(
     async (change: number) => {
@@ -779,6 +1052,9 @@ export const useDashboard = () => {
       isPublishing: isPublishingCommand,
       canControl: Boolean(topics && mqtt.isConnected && !isPublishingCommand),
     },
+    connectionAlertVisible,
+    connectionAlertRetrying,
+    handleConnectionAlertRetry,
   };
 };
 

@@ -14,7 +14,12 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { GestureDetector } from 'react-native-gesture-handler';
 import { useDeviceDimensions } from '@hooks';
 import { Svgs } from '@assets/svgs';
-import { AppButton, AppText, Loader } from '@components';
+import {
+  AppButton,
+  AppText,
+  Loader,
+  ChargerConnectionAlert,
+} from '@components';
 import { images } from '@assets/imgaes';
 import { useDashboard } from './useDashboard';
 import {
@@ -167,7 +172,11 @@ const CurrentControl = ({ currentControl, style }: CurrentControlProps) => {
             height={style.metricIcon.height}
           />
         </View>
-        <AppText medium label="Set Current (A)" style={style.metricLabel} />
+        <AppText
+          medium
+          label="Set Current (A)"
+          style={style.metricLabelSetCurrent}
+        />
       </View>
       <View style={style.currentControlRow}>
         <Pressable
@@ -574,6 +583,9 @@ export const Dashboard = () => {
     handleRetry,
     handleTrackLayout,
     isCharging,
+    connectionAlertVisible,
+    connectionAlertRetrying,
+    handleConnectionAlertRetry,
     isSwiping,
     swipeGesture,
     swipePosition,
@@ -630,6 +642,12 @@ export const Dashboard = () => {
       source={images.dashboardBG}
     >
       <StatusBar barStyle="dark-content" backgroundColor="transparent" />
+
+      {/* <ChargerConnectionAlert
+        visible={connectionAlertVisible}
+        isRetrying={connectionAlertRetrying}
+        onRetry={handleConnectionAlertRetry}
+      /> */}
 
       <View style={styles.topBar}>
         {dashboard.hasFault ? (
@@ -725,8 +743,9 @@ export const Dashboard = () => {
                   <View
                     style={{
                       flexDirection: 'row',
-                      justifyContent: 'space-between',
                       alignItems: 'center',
+                      flexWrap: 'wrap',
+                      justifyContent: 'space-between',
                     }}
                   >
                     <AppText
@@ -736,29 +755,29 @@ export const Dashboard = () => {
                       style={styles.deviceInfoDetail}
                     />
 
-                    {dashboard.selectedDeviceInfo.location ? (
+                    {dashboard.selectedDeviceInfo.firmwareVersions.mcu ||
+                    dashboard.selectedDeviceInfo.firmwareVersions.wifi ? (
                       <AppText
                         medium
                         numberOfLines={1}
-                        label={`Location: ${dashboard.selectedDeviceInfo.location}`}
-                        style={styles.deviceInfoLocation}
+                        label={`MCU: ${
+                          dashboard.selectedDeviceInfo.firmwareVersions.mcu ||
+                          '--'
+                        } • Wi-Fi: ${
+                          dashboard.selectedDeviceInfo.firmwareVersions.wifi ||
+                          '--'
+                        }`}
+                        style={[styles.deviceInfoDetail, { marginLeft: 8 }]}
                       />
                     ) : null}
                   </View>
 
-                  {dashboard.selectedDeviceInfo.firmwareVersions.mcu ||
-                  dashboard.selectedDeviceInfo.firmwareVersions.wifi ? (
+                  {dashboard.selectedDeviceInfo.location ? (
                     <AppText
                       medium
                       numberOfLines={1}
-                      label={`MCU: ${
-                        dashboard.selectedDeviceInfo.firmwareVersions.mcu ||
-                        '--'
-                      } • Wi-Fi: ${
-                        dashboard.selectedDeviceInfo.firmwareVersions.wifi ||
-                        '--'
-                      }`}
-                      style={styles.deviceInfoDetail2}
+                      label={`Location: ${dashboard.selectedDeviceInfo.location}`}
+                      style={styles.deviceInfoLocation}
                     />
                   ) : null}
                 </View>

@@ -5,6 +5,7 @@ export { default as StatusBar } from './common/statusBar';
 export { default as ToastMessage } from './common/appToast';
 export { default as KeyboardAvoider } from './common/keyboardScrollView';
 export { default as BarcodeScannerModal } from './common/barcode/BarcodeScannerModal';
+export { default as ChargerConnectionAlert } from './chargerConnectionAlert';
 
 // Form
 export { default as AppInput } from './form/appInput';
