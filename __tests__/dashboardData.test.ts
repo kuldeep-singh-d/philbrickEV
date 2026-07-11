@@ -2,6 +2,7 @@ import {
   getActiveFaults,
   getCpStatusString,
   getEvseCapacityText,
+  getFirmwareVersions,
   getVisiblePhaseNames,
   isCpStatusChargingActive,
   parseDashboardMessage,
@@ -91,11 +92,7 @@ describe('dashboard MQTT data mapping', () => {
 
     expect(getVisiblePhaseNames(singlePhaseTelemetry)).toEqual(['R']);
     expect(getVisiblePhaseNames(threePhaseTelemetry)).toEqual(['R', 'Y', 'B']);
-    expect(getVisiblePhaseNames(parseDashboardMessage(null))).toEqual([
-      'R',
-      'Y',
-      'B',
-    ]);
+    expect(getVisiblePhaseNames(parseDashboardMessage(null))).toEqual([]);
   });
 
   it('maps phase parameters and visibility from the responseid payload', () => {
@@ -121,7 +118,20 @@ describe('dashboard MQTT data mapping', () => {
     expect(
       parsePhaseParametersMessage(JSON.stringify({ evsecap: 2 }))
         .visiblePhaseNames,
-    ).toEqual(['R', 'Y', 'B']);
+    ).toEqual([]);
+  });
+
+  it('extracts firmware versions from the responseid payload', () => {
+    expect(
+      getFirmwareVersions(
+        JSON.stringify({
+          device1: 'D06753C55494',
+          evsecap: 2,
+          swversion1: 1.02,
+          swversion2: 0.2,
+        }),
+      ),
+    ).toEqual({ mcu: '1.02', wifi: '0.2' });
   });
 
   it('preserves status phase values missing from the responseid payload', () => {
@@ -184,9 +194,11 @@ describe('dashboard MQTT data mapping', () => {
   });
 
   it('starts the mobile charging timer only for charging or ventilation statuses', () => {
-    expect(Array.from({ length: 7 }, (_, status) => status).filter(
-      isCpStatusChargingActive,
-    )).toEqual([3, 4]);
+    expect(
+      Array.from({ length: 7 }, (_, status) => status).filter(
+        isCpStatusChargingActive,
+      ),
+    ).toEqual([3, 4]);
     expect(isCpStatusChargingActive(undefined)).toBe(false);
   });
 });

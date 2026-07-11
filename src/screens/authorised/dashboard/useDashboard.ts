@@ -19,6 +19,7 @@ import { createDeviceMqttTopics, mqttPayloads } from '../../../mqtt/mqttTopics';
 import {
   FAULT_LABELS,
   getActiveFaults,
+  getFirmwareVersions,
   isCpStatusChargingActive,
   formatDuration,
   parseDashboardMessage,
@@ -117,9 +118,7 @@ export const useDashboard = () => {
   const isFocused = useIsFocused();
   const { moderateWidth } = useDeviceDimensions();
   const selectedDevice = useSelector(state => state.selectedDevice.data);
-  const dynamicMqttConfig = useSelector(
-    state => state.certificates.mqttConfig,
-  );
+  const dynamicMqttConfig = useSelector(state => state.certificates.mqttConfig);
   const certificatesLoading = useSelector(state => state.certificates.loading);
   const certificatesError = useSelector(state => state.certificates.error);
   const mqttConfigError = useSelector(
@@ -151,6 +150,9 @@ export const useDashboard = () => {
   const [responseIdMessage, setResponseIdMessage] = useState<string | null>(
     null,
   );
+
+  console.log('\n ~ useDashboard ~ responseIdMessage:', responseIdMessage);
+
   const [isCharging, setIsCharging] = useState(false);
   const [isSwiping, setIsSwiping] = useState(false);
   const [swipePosition, setSwipePosition] = useState(0);
@@ -181,6 +183,7 @@ export const useDashboard = () => {
       ),
     [selectedDevice, statusMessage],
   );
+  console.log('\n ~ useDashboard ~ telemetry:', telemetry);
   const phaseParameters = useMemo(
     () => parsePhaseParametersMessage(responseIdMessage, telemetry.phases),
     [responseIdMessage, telemetry.phases],
@@ -192,8 +195,9 @@ export const useDashboard = () => {
       name: getDeviceText(device, ['name']) || 'Selected device',
       id: getDeviceText(device, ['device_id', 'deviceId', 'id']),
       location: getDeviceText(device, ['location']),
+      firmwareVersions: getFirmwareVersions(responseIdMessage),
     };
-  }, [selectedDevice]);
+  }, [responseIdMessage, selectedDevice]);
   const isActiveChargingStatus = isCpStatusChargingActive(telemetry.cpStatus);
 
   const setCurrentValue = useCallback((current: number) => {
@@ -725,12 +729,12 @@ export const useDashboard = () => {
     certificatesLoading && !dynamicMqttConfig
       ? 'Preparing connection...'
       : mqtt.isInitializing
-    ? 'Connecting...'
-    : mqtt.isConnected
-    ? 'Connected'
-    : mqtt.status === 'error'
-    ? 'Connection failed'
-    : 'Disconnected';
+      ? 'Connecting...'
+      : mqtt.isConnected
+      ? 'Connected'
+      : mqtt.status === 'error'
+      ? 'Connection failed'
+      : 'Disconnected';
 
   return {
     styles,

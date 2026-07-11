@@ -379,13 +379,19 @@ export const useStyles = () => {
     },
     deviceInfoDetail: {
       color: '#667085',
-      fontSize: moderateHeight(1.25),
+      fontSize: moderateHeight(1.4),
       lineHeight: moderateHeight(1.8),
       marginTop: moderateHeight(0.15),
     },
+    deviceInfoDetail2: {
+      color: '#667085',
+      marginTop: moderateHeight(0.5),
+      fontSize: moderateHeight(1.4),
+      lineHeight: moderateHeight(1.8),
+    },
     deviceInfoLocation: {
       color: '#667085',
-      fontSize: moderateHeight(1.25),
+      fontSize: moderateHeight(1.6),
       lineHeight: moderateHeight(1.8),
       // marginTop: moderateHeight(0.7),
     },
@@ -432,8 +438,8 @@ export const useStyles = () => {
     metricLabel: {
       flexShrink: 1,
       color: '#667085',
-      fontSize: moderateHeight(1.2),
-      lineHeight: moderateHeight(1.7),
+      fontSize: moderateHeight(1.8),
+      lineHeight: moderateHeight(2),
     },
     metricValue: {
       color: '#101828',

@@ -99,10 +99,10 @@ const Metric = ({ label, value, unit, icon: Icon, style }: MetricProps) => (
         />
       </View>
       <AppText
-        medium
+        semibold
+        label={label}
         adjustsFontSizeToFit
         minimumFontScale={0.82}
-        label={label}
         style={style.metricLabel}
       />
     </View>
@@ -704,6 +704,69 @@ export const Dashboard = () => {
           />
         </View> */}
 
+        {dashboard.selectedDeviceInfo.id ? (
+          <View style={styles.deviceInfoCard}>
+            <View style={styles.deviceInfoHeader}>
+              {/* <View style={styles.deviceInfoIcon}>
+                <Svgs.Charging
+                  color="#18B94B"
+                  width={styles.deviceInfoIconSvg.width}
+                  height={styles.deviceInfoIconSvg.height}
+                />
+              </View> */}
+              <View style={styles.deviceInfoCopy}>
+                <AppText
+                  semibold
+                  numberOfLines={1}
+                  label={dashboard.selectedDeviceInfo.name}
+                  style={styles.deviceInfoName}
+                />
+                <View style={{ marginTop: 2 }}>
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <AppText
+                      medium
+                      numberOfLines={1}
+                      label={`Device ID: ${dashboard.selectedDeviceInfo.id}`}
+                      style={styles.deviceInfoDetail}
+                    />
+
+                    {dashboard.selectedDeviceInfo.location ? (
+                      <AppText
+                        medium
+                        numberOfLines={1}
+                        label={`Location: ${dashboard.selectedDeviceInfo.location}`}
+                        style={styles.deviceInfoLocation}
+                      />
+                    ) : null}
+                  </View>
+
+                  {dashboard.selectedDeviceInfo.firmwareVersions.mcu ||
+                  dashboard.selectedDeviceInfo.firmwareVersions.wifi ? (
+                    <AppText
+                      medium
+                      numberOfLines={1}
+                      label={`MCU: ${
+                        dashboard.selectedDeviceInfo.firmwareVersions.mcu ||
+                        '--'
+                      } • Wi-Fi: ${
+                        dashboard.selectedDeviceInfo.firmwareVersions.wifi ||
+                        '--'
+                      }`}
+                      style={styles.deviceInfoDetail2}
+                    />
+                  ) : null}
+                </View>
+              </View>
+            </View>
+          </View>
+        ) : null}
+
         <View style={styles.statusCardShadow}>
           <View style={styles.statusCardShell}>
             {/* <StatusCardBackground /> */}
@@ -732,51 +795,6 @@ export const Dashboard = () => {
           </View>
         </View>
 
-        {dashboard.selectedDeviceInfo.id ? (
-          <View style={styles.deviceInfoCard}>
-            <View style={styles.deviceInfoHeader}>
-              {/* <View style={styles.deviceInfoIcon}>
-                <Svgs.Charging
-                  color="#18B94B"
-                  width={styles.deviceInfoIconSvg.width}
-                  height={styles.deviceInfoIconSvg.height}
-                />
-              </View> */}
-              <View style={styles.deviceInfoCopy}>
-                <AppText
-                  semibold
-                  numberOfLines={1}
-                  label={dashboard.selectedDeviceInfo.name}
-                  style={styles.deviceInfoName}
-                />
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                  }}
-                >
-                  <AppText
-                    medium
-                    numberOfLines={1}
-                    label={`Device ID: ${dashboard.selectedDeviceInfo.id}`}
-                    style={styles.deviceInfoDetail}
-                  />
-
-                  {dashboard.selectedDeviceInfo.location ? (
-                    <AppText
-                      medium
-                      numberOfLines={1}
-                      label={`Location: ${dashboard.selectedDeviceInfo.location}`}
-                      style={styles.deviceInfoLocation}
-                    />
-                  ) : null}
-                </View>
-              </View>
-            </View>
-          </View>
-        ) : null}
-
         <View style={[styles.card, styles.metricsCard]}>
           <View style={styles.metricsGrid}>
             <Metric
@@ -793,13 +811,13 @@ export const Dashboard = () => {
               icon={Svgs.DashboardTemperature}
               value={formatMetric(telemetry.temperature)}
             />
-            <Metric
+            {/* <Metric
               unit="A"
               label="Live Current"
               style={styles}
               icon={Svgs.DashboardCurrent}
               value={formatMetric(dashboard.current)}
-            />
+            /> */}
           </View>
 
           <Pressable

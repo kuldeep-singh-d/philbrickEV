@@ -59,6 +59,11 @@ export interface DashboardPhaseParameters {
   visiblePhaseNames: PhaseName[];
 }
 
+export interface FirmwareVersions {
+  mcu?: string;
+  wifi?: string;
+}
+
 const getNumber = (
   source: UnknownRecord,
   keys: string[],
@@ -92,6 +97,10 @@ const getString = (
     if (typeof value === 'string' && value.trim()) {
       return value.trim();
     }
+
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return String(value);
+    }
   }
 
   return undefined;
@@ -111,6 +120,19 @@ const parseMessageSource = (message?: string | null): UnknownRecord => {
   } catch {
     return {};
   }
+};
+
+export const getFirmwareVersions = (
+  message?: string | null,
+): FirmwareVersions => {
+  const source = parseMessageSource(message);
+  const mcu = getString(source, ['swversion1', 'mcuVersion', 'mcu']);
+  const wifi = getString(source, ['swversion2', 'wifiVersion', 'wifi']);
+
+  return {
+    mcu,
+    wifi,
+  };
 };
 
 const getPhaseValues = (
@@ -149,6 +171,20 @@ const PHASE_KEYS: Record<PhaseName, string[]> = {
   B: ['votlageB', 'voltageB', 'voltage_b', 'currentB', 'current_b'],
 };
 
+const getVisiblePhaseNamesFromPhases = (
+  phases?: DashboardTelemetry['phases'],
+): PhaseName[] => {
+  if (!phases) {
+    return [];
+  }
+
+  return PHASE_NAMES.filter(phase => {
+    const phaseValues = phases[phase];
+
+    return phaseValues.voltage !== 0 || phaseValues.current !== 0;
+  });
+};
+
 export const parsePhaseParametersMessage = (
   message?: string | null,
   fallbackPhases?: DashboardTelemetry['phases'],
@@ -160,13 +196,17 @@ export const parsePhaseParametersMessage = (
       Object.prototype.hasOwnProperty.call(source, key),
     ),
   );
+  const fallbackVisiblePhaseNames =
+    getVisiblePhaseNamesFromPhases(fallbackPhases);
   const responseCapacity = getNumber(source, ['evsecap']);
   const visiblePhaseNames =
     phasesIncludedInResponse.length > 0
       ? phasesIncludedInResponse
       : responseCapacity === 0 || responseCapacity === 1
       ? (['R'] as PhaseName[])
-      : [...PHASE_NAMES];
+      : fallbackVisiblePhaseNames.length > 0
+      ? fallbackVisiblePhaseNames
+      : [];
 
   return { phases, visiblePhaseNames };
 };
@@ -192,8 +232,7 @@ export const getCpStatusString = (cp?: number) => {
   }
 };
 
-export const isCpStatusChargingActive = (cp?: number) =>
-  cp === 3 || cp === 4;
+export const isCpStatusChargingActive = (cp?: number) => cp === 3 || cp === 4;
 
 export const getEvseCapacityText = (capacity?: number) => {
   switch (capacity) {
@@ -284,12 +323,4 @@ export const formatMetric = (
 
 export const getVisiblePhaseNames = (
   telemetry: DashboardTelemetry,
-): PhaseName[] => {
-  const visiblePhases = PHASE_NAMES.filter(phase => {
-    const phaseTelemetry = telemetry.phases[phase];
-
-    return phaseTelemetry.voltage !== 0 || phaseTelemetry.current !== 0;
-  });
-
-  return visiblePhases.length > 0 ? visiblePhases : [...PHASE_NAMES];
-};
+): PhaseName[] => getVisiblePhaseNamesFromPhases(telemetry.phases);
