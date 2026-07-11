@@ -239,7 +239,6 @@ interface ChargingHeroProps {
   isPublishing: boolean;
   onChargeChange: (nextCharging: boolean) => Promise<void>;
   scrollY: Animated.Value;
-  statusText: string;
   styles: ReturnType<typeof useDashboard>['styles'];
 }
 
@@ -258,7 +257,6 @@ const ChargingHero = ({
   isPublishing,
   onChargeChange,
   scrollY,
-  statusText,
   styles,
 }: ChargingHeroProps) => {
   const { moderateWidth } = useDeviceDimensions();
@@ -269,13 +267,6 @@ const ChargingHero = ({
   const isError = isConnected && (hasFault || cpStatus === 6);
   const isVentilation = cpStatus === 4;
   const isFinished = cpStatus === 5;
-  const heroStatus = !isConnected
-    ? 'NOT CONNECTED'
-    : cpStatus === undefined
-    ? 'CONNECTED'
-    : cpStatus === 2
-    ? 'CONNECTED'
-    : statusText;
   const accentColor = isError
     ? '#E5484D'
     : isVentilation
@@ -511,26 +502,6 @@ const ChargingHero = ({
         ) : null}
 
         <View style={styles.heroCircle}>
-          <View style={styles.heroStatusArea}>
-            <AppText
-              semibold
-              centered
-              label="CHARGER STATUS"
-              style={styles.heroEyebrow}
-            />
-            <AppText
-              bold
-              centered
-              numberOfLines={2}
-              adjustsFontSizeToFit
-              minimumFontScale={0.78}
-              label={heroStatus}
-              style={[styles.heroStatusText, { color: accentColor }]}
-            />
-          </View>
-
-          <View style={styles.heroDivider} />
-
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={isCharging ? 'Stop charging' : 'Start charging'}
@@ -539,6 +510,10 @@ const ChargingHero = ({
             onPress={handleActionPress}
             style={({ pressed }) => [
               styles.heroAction,
+              {
+                backgroundColor: `${actionColor}16`,
+                borderColor: `${actionColor}36`,
+              },
               (!canControl || isPublishing) && styles.heroActionDisabled,
               pressed && styles.heroActionPressed,
             ]}
@@ -563,9 +538,7 @@ const ChargingHero = ({
             <AppText
               semibold
               centered
-              label={
-                isPublishing ? 'SENDING COMMAND' : isCharging ? 'STOP' : 'START'
-              }
+              label={isPublishing ? 'SENDING' : isCharging ? 'STOP' : 'START'}
               style={[styles.heroActionLabel, { color: actionColor }]}
             />
           </Pressable>
@@ -643,11 +616,11 @@ export const Dashboard = () => {
     >
       <StatusBar barStyle="dark-content" backgroundColor="transparent" />
 
-      {/* <ChargerConnectionAlert
+      <ChargerConnectionAlert
         visible={connectionAlertVisible}
         isRetrying={connectionAlertRetrying}
         onRetry={handleConnectionAlertRetry}
-      /> */}
+      />
 
       <View style={styles.topBar}>
         {dashboard.hasFault ? (
@@ -695,7 +668,6 @@ export const Dashboard = () => {
           cpStatus={telemetry.cpStatus}
           canControl={dashboard.canControl}
           isConnected={dashboard.isConnected}
-          statusText={telemetry.cpStatusText}
           onChargeChange={handleChargeChange}
           isPublishing={dashboard.isPublishing}
         />
