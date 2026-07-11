@@ -1,11 +1,7 @@
 import React from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  RefreshControl,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Pressable, View } from 'react-native';
 
+import { Svgs } from '@assets/svgs';
 import { AppButton, AppText } from '@components';
 import type { Device } from '@store/slices/devices/devices';
 import AuthorisedScreen from '../../../components/container/AuthorisedScreen';
@@ -25,14 +21,14 @@ export const SelectDevice = () => {
   return (
     <AuthorisedScreen
       contentStyle={styles.content}
-      refreshControl={
+      /* refreshControl={
         <RefreshControl
           tintColor="#31C44C"
           refreshing={states.refreshing}
           colors={['#31C44C', '#0BB2C3']}
           onRefresh={handlers.handleRefresh}
         />
-      }
+      } */
     >
       {/* <AppText semibold label="Select Device" style={styles.heading} /> */}
 
@@ -98,9 +94,27 @@ export const SelectDevice = () => {
       )}
 
       <View style={styles.actionsContainer}>
-        {isEmpty ? (
-          <AppButton title="Add Device" onPress={handlers.handleAddDevice} />
-        ) : null}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Refresh device list"
+          disabled={states.loading || states.refreshing}
+          onPress={handlers.handleRefresh}
+          style={({ pressed }) => [
+            styles.refreshPill,
+            pressed && styles.refreshPillPressed,
+            (states.loading || states.refreshing) && styles.refreshPillDisabled,
+          ]}
+        >
+          <AppText
+            semibold
+            label={states.refreshing ? 'Refreshing...' : 'Refresh'}
+            style={styles.refreshPillText}
+          />
+        </Pressable>
+
+        {/* {isEmpty ? ( */}
+        <AppButton title="Add Device" onPress={handlers.handleAddDevice} />
+        {/* ) : null} */}
 
         {states.requiresInitialSelection && states.selectedDevice ? (
           <AppButton title="Next" onPress={handlers.handleNext} />

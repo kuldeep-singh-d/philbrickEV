@@ -48,6 +48,7 @@ import DashboardTimer from './dashboardTimer.svg';
 import DashboardCharging from './dashboardCharging.svg';
 import HeroStart from './heroStart.svg';
 import HeroStop from './heroStop.svg';
+import RefreshGradient from './refreshGradient.svg';
 
 export const Svgs = Object.freeze({
   Call,
@@ -100,4 +101,5 @@ export const Svgs = Object.freeze({
   DashboardCharging,
   HeroStart,
   HeroStop,
+  RefreshGradient,
 });

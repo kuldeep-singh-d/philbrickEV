@@ -8,16 +8,22 @@ interface KeyboardAvoiderProps extends KeyboardAwareScrollViewProps {}
 
 const KeyboardAvoider = ({
   children,
-  bounces = false,
+  bounces,
+  alwaysBounceVertical,
+  refreshControl,
   extraScrollHeight,
   contentContainerStyle = {},
   ...scrollViewProps
 }: KeyboardAvoiderProps) => {
+  const hasRefreshControl = Boolean(refreshControl);
+
   return (
     <KeyboardAwareScrollView
       {...scrollViewProps}
       enableOnAndroid
-      bounces={bounces}
+      bounces={bounces ?? hasRefreshControl}
+      alwaysBounceVertical={alwaysBounceVertical ?? hasRefreshControl}
+      refreshControl={refreshControl}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
       extraScrollHeight={extraScrollHeight}

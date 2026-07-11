@@ -118,7 +118,7 @@ export const useSettings = () => {
       { title: 'Select Device', onPress: handleSelectDevice },
       { title: 'Update Password', onPress: handleUpdatePassword },
       { title: 'Device Firmware update', onPress: handleFirmwareUpdate },
-      { title: 'API Test', onPress: handleApiTest },
+      // { title: 'API Test', onPress: handleApiTest },
       {
         title: 'Logout',
         onPress: handleLogout,

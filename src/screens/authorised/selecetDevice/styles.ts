@@ -72,7 +72,35 @@ export const useStyles = () => {
     },
     actionsContainer: {
       marginTop: 'auto',
-      marginBottom: moderateHeight(4),
+      marginBottom: moderateHeight(2),
+    },
+    refreshPill: {
+      alignSelf: 'center',
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: moderateHeight(1.2),
+      paddingVertical: moderateHeight(0.7),
+      paddingHorizontal: moderateWidth(5),
+      borderRadius: moderateWidth(4),
+      borderWidth: 1,
+      borderColor: '#E5E7EB',
+      backgroundColor: '#F3F4F6',
+    },
+    refreshPillPressed: {
+      opacity: 0.75,
+    },
+    refreshPillDisabled: {
+      opacity: 0.6,
+    },
+    refreshPillIcon: {
+      width: moderateWidth(4),
+      height: moderateWidth(4),
+      marginRight: moderateWidth(1.2),
+    },
+    refreshPillText: {
+      color: '#6B7280',
+      fontSize: moderateHeight(1.4),
+      lineHeight: moderateHeight(1.8),
     },
   });
 };
