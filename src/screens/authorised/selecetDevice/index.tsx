@@ -15,8 +15,6 @@ export const SelectDevice = () => {
   const selectedDeviceKey = states.selectedDevice
     ? getDeviceKey(states.selectedDevice)
     : '';
-  const isEmpty =
-    !states.loading && !states.error && states.devices.length === 0;
 
   return (
     <AuthorisedScreen
@@ -79,16 +77,29 @@ export const SelectDevice = () => {
               />
             </View>
 
-            {Boolean(selectedDeviceKey) &&
-            selectedDeviceKey === getDeviceKey(device) ? (
-              <View style={styles.activeBadge}>
-                <AppText
-                  semibold
-                  label="Active"
-                  style={styles.activeBadgeText}
-                />
-              </View>
-            ) : null}
+            <View style={styles.deviceCardRight}>
+              {Boolean(selectedDeviceKey) &&
+              selectedDeviceKey === getDeviceKey(device) ? (
+                <View style={styles.activeBadge}>
+                  <AppText
+                    semibold
+                    label="Active"
+                    style={styles.activeBadgeText}
+                  />
+                </View>
+              ) : null}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Delete device"
+                onPress={() => handlers.handleDeleteDevice(device)}
+                style={({ pressed }) => [
+                  styles.deleteButton,
+                  pressed && styles.deleteButtonPressed,
+                ]}
+              >
+                <Svgs.Delete width={18} height={18} />
+              </Pressable>
+            </View>
           </Pressable>
         ))
       )}

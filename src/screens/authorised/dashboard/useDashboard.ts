@@ -1,5 +1,9 @@
 import { routes } from '@routes';
-import { useIsFocused, useNavigation } from '@react-navigation/native';
+import {
+  useIsFocused,
+  useNavigation,
+  useFocusEffect,
+} from '@react-navigation/native';
 import { AppState, LayoutChangeEvent, type AppStateStatus } from 'react-native';
 import { Gesture } from 'react-native-gesture-handler';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -346,6 +350,16 @@ export const useDashboard = () => {
     startConnectionAlertTimer();
   }, [startConnectionAlertTimer]);
 
+  // Fetch certificates on screen focus to ensure fresh MQTT config
+  useFocusEffect(
+    useCallback(() => {
+      // If we don't have valid dynamic config and not currently loading, fetch it
+      if (!dynamicMqttConfig && !certificatesLoading && !certificatesError) {
+        dispatch(fetchCertificates());
+      }
+    }, [dispatch, dynamicMqttConfig, certificatesLoading, certificatesError]),
+  );
+
   const setCurrentValue = useCallback((current: number) => {
     const normalizedCurrent = normalizeCurrent(current);
     currentSettingRef.current = normalizedCurrent;
@@ -364,7 +378,7 @@ export const useDashboard = () => {
     setCurrentValue(DEFAULT_CURRENT);
     isSettingCurrentRef.current = false;
     setIsSettingCurrent(false);
-    requestedDeviceRef.current = '';
+    requestedDeviceRef.current = ''; // Reset to trigger request frame on new device
     sessionStartRef.current = null;
     activeTimerStartedAtMsRef.current = null;
     lastValidChargerMessageAtRef.current = null;
@@ -560,13 +574,13 @@ export const useDashboard = () => {
   }, [markConnectionAlertActivity, mqtt.latestMessage, publish, topics]);
 
   useEffect(() => {
-    if (telemetry.cpStatus !== undefined) {
-      setIsCharging(isActiveChargingStatus);
+    if (telemetry.auth !== undefined) {
+      setIsCharging(telemetry.auth === 1);
       return;
     }
 
-    if (telemetry.auth !== undefined) {
-      setIsCharging(telemetry.auth === 1);
+    if (telemetry.cpStatus !== undefined) {
+      setIsCharging(isActiveChargingStatus);
     }
   }, [isActiveChargingStatus, telemetry.auth, telemetry.cpStatus]);
 
@@ -580,11 +594,8 @@ export const useDashboard = () => {
       return;
     }
 
-    if (mqtt.subscribedTopics.includes(topics.subscribe.responseId)) {
-      return;
-    }
-
-    if (!topics || requestedDeviceRef.current === topics.deviceId) {
+    // Send request frame for new device (requestedDeviceRef will be empty on device switch)
+    if (requestedDeviceRef.current === topics.deviceId) {
       return;
     }
 
@@ -598,12 +609,7 @@ export const useDashboard = () => {
       setCommandFeedbackIsError(true);
       setCommandFeedback(getMqttUserMessage(error));
     });
-  }, [
-    mqtt.isConnected,
-    mqtt.subscribedTopics,
-    publish,
-    topics,
-  ]);
+  }, [mqtt.isConnected, mqtt.subscribedTopics, publish, topics]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', nextState => {
@@ -744,6 +750,18 @@ export const useDashboard = () => {
     },
     [],
   );
+
+  // Update activity timestamp when receiving valid status messages
+  useEffect(() => {
+    if (
+      mqtt.latestMessage &&
+      topics &&
+      (mqtt.latestMessage.topic === topics.subscribe.status ||
+        mqtt.latestMessage.topic === topics.subscribe.legacyStatus)
+    ) {
+      markConnectionAlertActivity();
+    }
+  }, [mqtt.latestMessage, topics, markConnectionAlertActivity]);
 
   const activeAlerts = useMemo(() => {
     const chargerAlerts = chargerError

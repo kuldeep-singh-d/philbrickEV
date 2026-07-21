@@ -31,6 +31,7 @@ export const useStyles = () => {
       borderWidth: 1.5,
       flexDirection: 'row',
       alignItems: 'center',
+      justifyContent: 'space-between',
       borderColor: '#D1D5DB',
       backgroundColor: '#FFFFFF',
       borderRadius: moderateWidth(3),
@@ -49,6 +50,12 @@ export const useStyles = () => {
     deviceInfo: {
       flex: 1,
     },
+    deviceCardRight: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: moderateWidth(2),
+      marginLeft: moderateWidth(2),
+    },
     activeBadge: {
       marginLeft: moderateWidth(3),
       paddingVertical: moderateHeight(0.45),
@@ -60,6 +67,18 @@ export const useStyles = () => {
       color: '#FFFFFF',
       fontSize: moderateHeight(1.25),
       lineHeight: moderateHeight(1.8),
+    },
+    deleteButton: {
+      width: moderateHeight(3.5),
+      height: moderateHeight(3.5),
+      borderRadius: moderateWidth(2),
+      backgroundColor: '#FEE2E2',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    deleteButtonPressed: {
+      opacity: 0.6,
+      backgroundColor: '#FECACA',
     },
     deviceName: {
       fontSize: moderateHeight(1.8),

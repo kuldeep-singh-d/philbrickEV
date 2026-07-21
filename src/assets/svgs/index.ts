@@ -6,6 +6,7 @@ import Alert from './alert.svg';
 import AlertBackArrow from './alertBackArrow.svg';
 import Check from './check.svg';
 import Cross from './cross.svg';
+import Delete from './delete.svg';
 import Phone from './phone.svg';
 import Swipe from './swipe.svg';
 import DateIcon from './date.svg';
@@ -59,6 +60,7 @@ export const Svgs = Object.freeze({
   AlertBackArrow,
   Check,
   Cross,
+  Delete,
   Phone,
   Swipe,
   Logout,
