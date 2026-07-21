@@ -21,6 +21,8 @@ interface AuthorisedScreenProps {
   contentStyle?: StyleProp<ViewStyle>;
   fixedContent?: ReactNode;
   fixedContentStyle?: StyleProp<ViewStyle>;
+  bottomContent?: ReactNode;
+  bottomContentStyle?: StyleProp<ViewStyle>;
   showBackButton?: boolean;
   roundedHeader?: boolean;
   refreshControl?: ReactElement<RefreshControlProps>;
@@ -31,6 +33,8 @@ export const AuthorisedScreen = ({
   contentStyle,
   fixedContent,
   fixedContentStyle,
+  bottomContent,
+  bottomContentStyle,
   showBackButton = false,
   roundedHeader = false,
   refreshControl,
@@ -76,11 +80,18 @@ export const AuthorisedScreen = ({
       ) : null}
 
       <KeyboardAvoider
+        style={styles.scrollContainer}
         refreshControl={refreshControl}
         contentContainerStyle={[styles.contentContainer, contentStyle]}
       >
         {children}
       </KeyboardAvoider>
+
+      {bottomContent ? (
+        <View style={[styles.bottomContentContainer, bottomContentStyle]}>
+          {bottomContent}
+        </View>
+      ) : null}
     </View>
   );
 };
@@ -138,9 +149,18 @@ const useStyles = () => {
       paddingBottom: moderateHeight(4),
       paddingHorizontal: moderateWidth(6),
     },
+    scrollContainer: {
+      flex: 1,
+    },
     fixedContentContainer: {
       backgroundColor: '#FFFFFF',
       paddingTop: moderateHeight(2.6),
+      paddingHorizontal: moderateWidth(6),
+    },
+    bottomContentContainer: {
+      backgroundColor: '#FFFFFF',
+      paddingTop: moderateHeight(0.4),
+      paddingBottom: insets.bottom + moderateHeight(1.2),
       paddingHorizontal: moderateWidth(6),
     },
   });

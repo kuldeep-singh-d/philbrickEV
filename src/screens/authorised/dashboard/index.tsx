@@ -616,11 +616,11 @@ export const Dashboard = () => {
     >
       <StatusBar barStyle="dark-content" backgroundColor="transparent" />
 
-      <ChargerConnectionAlert
+      {/* <ChargerConnectionAlert
         visible={connectionAlertVisible}
         isRetrying={connectionAlertRetrying}
         onRetry={handleConnectionAlertRetry}
-      />
+      /> */}
 
       <View style={styles.topBar}>
         {dashboard.hasFault ? (

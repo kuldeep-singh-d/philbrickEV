@@ -55,8 +55,8 @@ export const useSettings = () => {
     navigation.navigate(routes.app.updatePassword);
   }, [navigation]);
 
-  const handleApiTest = useCallback(() => {
-    navigation.navigate(routes.app.apiTest);
+  const handleScheduleCharger = useCallback(() => {
+    navigation.navigate(routes.app.scheduleCharger);
   }, [navigation]);
 
   const handleFirmwareUpdate = useCallback(() => {
@@ -117,8 +117,8 @@ export const useSettings = () => {
       { title: 'Add Device', onPress: handleAddDevice },
       { title: 'Select Device', onPress: handleSelectDevice },
       { title: 'Update Password', onPress: handleUpdatePassword },
+      { title: 'Schedule Charger', onPress: handleScheduleCharger },
       { title: 'Device Firmware update', onPress: handleFirmwareUpdate },
-      // { title: 'API Test', onPress: handleApiTest },
       {
         title: 'Logout',
         onPress: handleLogout,
@@ -127,10 +127,10 @@ export const useSettings = () => {
       },
     ],
     [
-      handleApiTest,
       handleAddDevice,
       handleFirmwareUpdate,
       handleLogout,
+      handleScheduleCharger,
       handleSelectDevice,
       handleUpdatePassword,
       logoutResponse.loading,

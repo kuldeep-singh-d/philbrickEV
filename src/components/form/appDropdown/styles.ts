@@ -10,7 +10,7 @@ const useStyles = (fadeAnim: Animated.Value) => {
   return StyleSheet.create({
     // ── Trigger ──
     wrapper: {
-      flex: 1,
+      width: '100%',
       marginTop: moderateHeight(1),
     },
     title: {
@@ -42,13 +42,14 @@ const useStyles = (fadeAnim: Animated.Value) => {
     },
 
     // ── Chips (multi-select trigger) ──
-    chipsScrollContainer: {
-      flex: 1,
-      maxHeight: moderateHeight(4),
-    },
     chipsContentContainer: {
+      flex: 1,
+      flexDirection: 'row',
+      flexWrap: 'wrap',
       alignItems: 'center',
-      gap: moderateWidth(1.5),
+      rowGap: moderateHeight(0.7),
+      columnGap: moderateWidth(1.5),
+      paddingVertical: moderateHeight(0.35),
     },
     chip: {
       flexDirection: 'row',

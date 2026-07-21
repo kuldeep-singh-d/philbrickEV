@@ -10,8 +10,16 @@ const Stack = createNativeStackNavigator();
 
 export function Authorised() {
   const selectedDevice = useSelector(state => state.selectedDevice.data);
-  const { addDevice, alerts, apiTest, mainTabs, selectDevice, updatePassword } =
-    routes.app;
+  const {
+    addDevice,
+    alerts,
+    apiTest,
+    mainTabs,
+    schedule,
+    scheduleCharger,
+    selectDevice,
+    updatePassword,
+  } = routes.app;
 
   return (
     <Stack.Navigator
@@ -23,6 +31,11 @@ export function Authorised() {
       <Stack.Screen name={addDevice} component={Screens.AddDevice} />
       <Stack.Screen name={selectDevice} component={Screens.SelectDevice} />
       <Stack.Screen name={updatePassword} component={Screens.UpdatePassword} />
+      <Stack.Screen
+        name={scheduleCharger}
+        component={Screens.ScheduleCharger}
+      />
+      <Stack.Screen name={schedule} component={Screens.Schedule} />
       <Stack.Screen name={apiTest} component={Screens.ApiTest} />
     </Stack.Navigator>
   );

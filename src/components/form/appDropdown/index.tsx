@@ -7,7 +7,6 @@ import {
   FlatList,
   Pressable,
   TextInput,
-  ScrollView,
   ActivityIndicator,
   KeyboardAvoidingView,
 } from 'react-native';
@@ -176,12 +175,7 @@ const AppDropdown = ({
         );
       }
       return (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.chipsScrollContainer}
-          contentContainerStyle={styles.chipsContentContainer}
-        >
+        <View style={styles.chipsContentContainer}>
           {selectedValues.map(item => (
             <View key={item.value} style={styles.chip}>
               <AppText
@@ -199,7 +193,7 @@ const AppDropdown = ({
               </Pressable>
             </View>
           ))}
-        </ScrollView>
+        </View>
       );
     }
 

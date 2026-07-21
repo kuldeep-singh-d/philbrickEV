@@ -8,7 +8,7 @@ const useStyles = () => {
 
   return StyleSheet.create({
     wrapper: {
-      flex: 1,
+      width: '100%',
       marginTop: moderateHeight(1),
     },
     title: {

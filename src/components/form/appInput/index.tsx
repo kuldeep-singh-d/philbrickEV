@@ -13,6 +13,7 @@ const GRADIENT_END = '#3AC34B';
 const GRADIENT_START = '#0BB2C3';
 
 const AppInput = ({
+  style,
   value,
   onPress,
   setError,
@@ -61,7 +62,11 @@ const AppInput = ({
   const input = (
     <Pressable
       onPress={onPress}
-      style={[styles.inputWrapper, gradientBorder && styles.gradientInput]}
+      style={[
+        styles.inputWrapper,
+        gradientBorder && styles.gradientInput,
+        style,
+      ]}
     >
       {leftIcon ? <View style={styles.leftIcon}>{leftIcon}</View> : null}
 
@@ -128,9 +133,11 @@ const AppInput = ({
       ) : (
         input
       )}
-      <View style={styles.errorContainer}>
-        <AppText label={error} style={styles.errorText} />
-      </View>
+      {error ? (
+        <View style={styles.errorContainer}>
+          <AppText label={error} style={styles.errorText} />
+        </View>
+      ) : null}
     </View>
   );
 };
